@@ -272,7 +272,7 @@
   }
 
   function getTargetWeek() {
-    if (window.__targetWeekStart == null) return null;
+    if (window.__targetWeekStart == null || window.__targetWeekEnd == null) return null;
     const start = new Date(window.__targetWeekStart);
     const end = new Date(window.__targetWeekEnd);
     end.setHours(23, 59, 59, 999);

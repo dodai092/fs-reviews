@@ -37,7 +37,7 @@
         return;
       }
 
-      window.__re.log(`Scrolling until we hit a review older than ${window.__re.formatDate(cutoffDate)}...`);
+      window.__re.log(`Scrolling until we hit a review older than ${window.__re.formatDate(scrollCutoff)}...`);
 
       let lastElementCount = 0;
       let noNewElementsCount = 0;
