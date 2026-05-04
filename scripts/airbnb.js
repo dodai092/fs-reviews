@@ -3,6 +3,7 @@
 
     // ─── Main ────────────────────────────────────────────────────────────────────
     function scrapeData() {
+        const { month: targetMonth, year: targetYear } = window.__re.getTargetMonthYear();
         const reviewNodes = document.querySelectorAll('button[aria-label="Opens detailed review"]');
 
         if (reviewNodes.length === 0) {
@@ -36,7 +37,10 @@
                 let dateVal = "", timeVal = "";
                 if (metaDiv) {
                     const parts = metaDiv.innerText.split("·");
-                    if (parts.length > 0) dateVal = window.__re.formatDate(parts[0].trim());
+                    const rawDateStr = parts.length > 0 ? parts[0].trim() : "";
+                    const parsedMY = window.__re.parseMonthYear(rawDateStr);
+                    if (parsedMY && (parsedMY.month !== targetMonth || parsedMY.year !== targetYear)) return;
+                    dateVal = window.__re.formatDate(rawDateStr);
                     if (parts.length > 1) timeVal = window.__re.formatTime12(parts[1].trim());
                 }
 
