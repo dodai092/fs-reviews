@@ -1,17 +1,59 @@
 document.addEventListener('DOMContentLoaded', () => {
 
   const PLATFORMS = [
-    { id: 'btn-airbnb', script: 'airbnb.js', domains: ['airbnb.com', 'airbnb.co.uk'] },
-    { id: 'btn-freetour', script: 'freetour.js', domains: ['freetour.com'] },
-    { id: 'btn-gyg', script: 'getyourguide.js', domains: ['getyourguide.com'] },
-    { id: 'btn-google', script: 'google.js', domains: ['google.com/maps', 'maps.google'] },
-    { id: 'btn-guruwalk', script: 'guruwalk.js', domains: ['guruwalk.com'] },
-    { id: 'btn-viator', script: 'viator.js', domains: ['viator.com'] },
-    { id: 'btn-tripadvisor', script: 'tripadvisor.js', domains: ['tripadvisor.com'] },
+    { id: 'btn-airbnb',      script: 'airbnb.js',      domains: ['airbnb.com', 'airbnb.co.uk'],          weekSupported: false },
+    { id: 'btn-freetour',    script: 'freetour.js',     domains: ['freetour.com'] },
+    { id: 'btn-gyg',         script: 'getyourguide.js', domains: ['getyourguide.com'] },
+    { id: 'btn-google',      script: 'google.js',       domains: ['google.com/maps', 'maps.google'] },
+    { id: 'btn-guruwalk',    script: 'guruwalk.js',     domains: ['guruwalk.com'] },
+    { id: 'btn-viator',      script: 'viator.js',       domains: ['viator.com'] },
+    { id: 'btn-tripadvisor', script: 'tripadvisor.js',  domains: ['tripadvisor.com'],                    weekSupported: false },
   ];
 
   const statusDiv = document.getElementById('status');
   const monthSelect = document.getElementById('month-select');
+  const weekSelect = document.getElementById('week-select');
+
+  const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+  function getWeeksForMonth(month, year) {
+    const firstDay = new Date(year, month, 1);
+    const dow = firstDay.getDay(); // 0=Sun, 1=Mon...6=Sat
+    const daysToMonday = dow === 0 ? -6 : 1 - dow;
+    const firstMonday = new Date(year, month, 1 + daysToMonday);
+    const lastDay = new Date(year, month + 1, 0);
+    const weeks = [];
+    let monday = new Date(firstMonday);
+    while (monday <= lastDay) {
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      weeks.push({ start: new Date(monday), end: new Date(sunday) });
+      monday = new Date(monday);
+      monday.setDate(monday.getDate() + 7);
+    }
+    return weeks;
+  }
+
+  function formatWeekLabel(start, end) {
+    return `${MONTH_ABBR[start.getMonth()]} ${start.getDate()} – ${MONTH_ABBR[end.getMonth()]} ${end.getDate()}`;
+  }
+
+  function populateWeekSelect() {
+    if (!weekSelect || !monthSelect) return;
+    const target = JSON.parse(monthSelect.value);
+    const weeks = getWeeksForMonth(target.month, target.year);
+    weekSelect.innerHTML = '';
+    const allOpt = document.createElement('option');
+    allOpt.value = 'null';
+    allOpt.text = 'All weeks';
+    weekSelect.appendChild(allOpt);
+    weeks.forEach(({ start, end }) => {
+      const opt = document.createElement('option');
+      opt.value = JSON.stringify({ start: start.getTime(), end: end.getTime() });
+      opt.text = formatWeekLabel(start, end);
+      weekSelect.appendChild(opt);
+    });
+  }
 
   // ─── Auto-Populate the Month Dropdown (+3 to -3 months) ─────────────────────
   if (monthSelect) {
@@ -29,6 +71,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  populateWeekSelect();
+
+  if (monthSelect) {
+    monthSelect.addEventListener('change', () => {
+      populateWeekSelect();
+    });
+  }
+
   // ─── Single tab query — cached for both auto-detect and injection ────────────
   let cachedTab = null;
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -38,6 +88,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (platform.domains.some(domain => url.includes(domain))) {
         const btn = document.getElementById(platform.id);
         if (btn) btn.classList.add('active');
+        if (weekSelect && platform.weekSupported === false) {
+          weekSelect.disabled = true;
+        }
         break;
       }
     }
