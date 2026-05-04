@@ -4,7 +4,8 @@
     // ─── 1. Target Dates ───────────────────────────────────────────────────────
     const { month: targetMonth, year: targetYear } = window.__re.getTargetMonthYear();
     window.__re.log(`Target date: Month ${targetMonth + 1}, Year ${targetYear}`);
-    const cutoffDate = new Date(targetYear, targetMonth, 1);
+    const targetWeek = window.__re.getTargetWeek();
+    const cutoffDate = targetWeek ? targetWeek.start : new Date(targetYear, targetMonth, 1);
 
     // ─── State ────────────────────────────────────────────────────────────────
     const allRows = [];
@@ -147,11 +148,12 @@
 
     // ─── 5. Strict Filtering & Output ───────────────────────────────────────────
     const validRows = allRows.filter(r => {
-        if (!r._rawDateObj || isNaN(r._rawDateObj.getTime())) return false; 
+        if (!r._rawDateObj || isNaN(r._rawDateObj.getTime())) return false;
+        if (targetWeek) return r._rawDateObj >= targetWeek.start && r._rawDateObj <= targetWeek.end;
         return r._rawDateObj.getFullYear() === targetYear && r._rawDateObj.getMonth() === targetMonth;
     }).map(r => {
         const cleaned = { ...r };
-        delete cleaned._rawDateObj; 
+        delete cleaned._rawDateObj;
         return cleaned;
     });
 
