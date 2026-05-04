@@ -4,7 +4,7 @@ A Chrome extension that scrapes customer reviews from popular platforms and send
 
 ## Supported Platforms
 
-Airbnb · Freetour.com · GetYourGuide · Google Maps · Guruwalk · Viator
+Airbnb · Freetour.com · GetYourGuide · Google Maps · Guruwalk · Viator · TripAdvisor
 
 ## Extracted Fields
 
@@ -24,26 +24,34 @@ Date · Time · Rating · Review text · Tour/product name · Guide name · City
 1. Navigate to a supported platform's review page.
 2. Click the **Reviews Extract** icon in your toolbar.
 3. Select the target month from the dropdown.
-4. Click the button for the current platform.
-5. Wait for **"Done! N reviews sent to Sheets."** — reviews are automatically written to Google Sheets.
+4. Optionally, select a specific week (Mon–Sun) from the **Scrape Week** dropdown. Leave it on "All weeks" to scrape the full month.
+5. Click the button for the current platform.
+6. Wait for **"Done! N reviews sent to Sheets."** — reviews are automatically written to Google Sheets.
 
-The extension auto-detects the active platform, expands truncated reviews where needed, and filters results to the selected month before sending.
+The extension auto-detects the active platform, expands truncated reviews where needed, and filters results to the selected month or week before sending.
+
+> **Week filter notes:**
+> - Airbnb and TripAdvisor do not support week filtering — the week dropdown is disabled on those pages.
+> - GetYourGuide and Viator apply the week filter via server-side URL parameters; you may need to click the button twice (once to redirect, once to scrape).
+> - Freetour, Guruwalk, and Google Maps filter client-side after scraping.
 
 ## Project Structure
 
 ```text
 manifest.json       Extension config, permissions, and popup definition
-popup.html          Popup UI
+popup.html          Popup UI (month + week dropdowns, platform buttons)
 popup.css           Popup UI styles
-popup.js            Button logic and script injection
+popup.js            Button logic, week generation, and script injection
 logo.png            Extension icon
 scripts/
-  common.js         Shared utilities (guide registry, date helpers, webhook)
+  common.js         Shared utilities (guide registry, date helpers, webhook,
+                    getTargetMonthYear, getTargetWeek)
   airbnb.js
   freetour.js
   getyourguide.js
   google.js
   guruwalk.js
+  tripadvisor.js
   viator.js
 ```
 

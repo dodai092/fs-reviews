@@ -121,7 +121,7 @@
     { keywords: ["zagreb: communism and croatian homeland war", "croatian homeland war", "communism", "homeland war"], shortName: "war" },
     { keywords: ["free spirit walking tour", "free spirit"], shortName: "free" },
     { keywords: ["zagreb food tour", "food tour"], shortName: "food" },
-    { keywords: ["guided city tour with wwii tunnels", "Zagreb Highlights: Old Town, WWII tunnels, Funicular & Tastings", "Guided City Tour with WWII Tunnels (Free Tour)", "best zagreb", "zagreb must-sees", "best of zagreb"], shortName: "best" },
+    { keywords: ["guided city tour with wwii tunnels", "Zagreb Highlights: Old Town, WWII tunnel, Funicular, Tasting", "Zagreb Highlights: Old Town, WWII tunnels, Funicular & Tastings", "Guided City Tour with WWII Tunnels (Free Tour)", "best zagreb", "zagreb must-sees", "best of zagreb"], shortName: "best" },
     { keywords: ["big zagreb private"], shortName: "big" },
     { keywords: ["old zagreb private"], shortName: "old" },
   ];
@@ -131,7 +131,7 @@
     const lower = rawName.toLowerCase();
     for (const { keywords, shortName } of TOUR_MAP) {
       for (const kw of keywords) {
-        if (lower.includes(kw)) return shortName;
+        if (lower.includes(kw.toLowerCase())) return shortName;
       }
     }
     return rawName;
@@ -234,17 +234,24 @@
     const parts = text.trim().split(/\s+/);
     if (parts.length < 2) return null;
     const month = MONTH_FULL_TO_IDX[parts[0].toLowerCase()];
-    const year = parseInt(parts[1], 10);
+    const year = parseInt(parts[parts.length - 1], 10);
     if (month === undefined || isNaN(year)) return null;
     return { month, year };
   }
 
   // ─── 6. LANGUAGE FORMATTER ──────────────────────────────────────────────────
   const LANG_MAP = { EN: "eng", ES: "esp", DE: "deu", FR: "fra", IT: "ita", PT: "por", HR: "hrv", NL: "nld", PL: "pol", RU: "rus", ZH: "zho", JA: "jpn" };
+  const LANG_NAME_MAP = {
+    english: "eng", spanish: "esp", german: "deu", french: "fra", italian: "ita",
+    portuguese: "por", croatian: "hrv", dutch: "nld", polish: "pol", russian: "rus",
+    chinese: "zho", japanese: "jpn",
+  };
 
   function formatLang(code) {
     if (!code) return "";
-    return LANG_MAP[code.toUpperCase()] || code.toLowerCase();
+    const lower = code.toLowerCase();
+    if (LANG_NAME_MAP[lower]) return LANG_NAME_MAP[lower];
+    return LANG_MAP[code.toUpperCase()] || lower;
   }
 
   // ─── 7. DOM UTILITY ─────────────────────────────────────────────────────────
