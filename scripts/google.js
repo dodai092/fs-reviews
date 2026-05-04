@@ -23,6 +23,8 @@
   window.__re.log(`Target date: Month ${targetMonth}, Year ${targetYear}`);
 
   const cutoffDate = new Date(targetYear, targetMonth, 1);
+  const targetWeek = window.__re.getTargetWeek();
+  const scrollCutoff = targetWeek ? targetWeek.start : cutoffDate;
 
   // ─── 3. Auto-Scroll Logic ─────────────────────────────────────────────────────
   async function autoScrollToTarget() {
@@ -66,8 +68,8 @@
             if (parsedISODate) {
                 const oldestLoadedDate = new Date(parsedISODate);
                 
-                if (oldestLoadedDate < cutoffDate) {
-                    window.__re.log(`Reached review older than target month (${lastDateText}). Stopping scroll.`);
+                if (oldestLoadedDate < scrollCutoff) {
+                    window.__re.log(`Reached review older than target (${lastDateText}). Stopping scroll.`);
                     clearInterval(scrollInterval);
                     resolve();
                 }
@@ -110,8 +112,9 @@
   
   // Strict Filtering: Keep only the ones inside the requested month
   const validReviews = rawReviews.filter(r => {
-      if (!r.publishedAtISO) return true; 
+      if (!r.publishedAtISO) return true;
       const d = new Date(r.publishedAtISO);
+      if (targetWeek) return d >= targetWeek.start && d <= targetWeek.end;
       return d.getFullYear() === targetYear && d.getMonth() === targetMonth;
   });
 
