@@ -8,7 +8,8 @@
     const { month: targetMonth, year: targetYear } = window.__re.getTargetMonthYear();
     window.__re.log(`Target date: Month ${targetMonth}, Year ${targetYear}`);
 
-    const cutoffDate = new Date(targetYear, targetMonth, 1);
+    const targetWeek = window.__re.getTargetWeek();
+    const cutoffDate = targetWeek ? targetWeek.start : new Date(targetYear, targetMonth, 1);
 
     const FULL_INFO_REGEX = /(.*?) \/ ([A-Z]{2}) \/ (.*?) at (.*)/;
 
@@ -172,10 +173,11 @@
 
     // --- 5. Final Output & Filtering ---
     const validRows = allRows.filter(r => {
-        if (!r._rawDateObj || isNaN(r._rawDateObj.getTime())) return true; 
+        if (!r._rawDateObj || isNaN(r._rawDateObj.getTime())) return true; // keep undated rows
+        if (targetWeek) return r._rawDateObj >= targetWeek.start && r._rawDateObj <= targetWeek.end;
         return r._rawDateObj.getFullYear() === targetYear && r._rawDateObj.getMonth() === targetMonth;
     }).map(r => {
-        delete r._rawDateObj; 
+        delete r._rawDateObj;
         return r;
     });
 
