@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+
+    <div class="logo-container">
+      <img src="logo.png" alt="Free Spirit Logo" style="width: 100px;">
+    </div>
+
+    <p class="subtitle">Reviews Extraction</p>
+
+    <div class="section-label">Platforms</div>
+    <div style="margin-bottom: 15px; text-align: center;">
+  <label for="month-select" style="font-weight: bold; display: block; margin-bottom: 5px;">Scrape Reviews For:</label>
+  <select id="month-select" style="width: 100%; padding: 6px; font-size: 14px;">
+    </select>
+</div>
+    <button id="btn-airbnb" class="btn-secondary">Airbnb Reviews</button>
+    <button id="btn-freetour" class="btn-secondary">Freetour Reviews</button>
+    <button id="btn-gyg" class="btn-secondary">GetYourGuide Reviews</button>
+    <button id="btn-google" class="btn-secondary">Google Reviews</button>
+    <button id="btn-guruwalk" class="btn-secondary">Guruwalk Reviews</button>
+    <button id="btn-viator" class="btn-secondary">Viator Reviews</button>
+    <button id="btn-tripadvisor" class="btn-secondary">TripAdvisor Reviews</button>
+
+    <hr class="divider">
+
+    <div id="status">Ready</div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
