@@ -102,6 +102,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const tabId = cachedTab.id;
     statusDiv.innerText = 'Scraping';
     const targetData = monthSelect ? JSON.parse(monthSelect.value) : null;
+    const weekVal = weekSelect ? weekSelect.value : 'null';
+    const weekData = weekVal === 'null' ? null : JSON.parse(weekVal);
+    const weekStart = weekData ? weekData.start : null;
+    const weekEnd = weekData ? weekData.end : null;
 
     function injectCommon() {
       chrome.scripting.executeScript(
@@ -138,8 +142,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (targetData) {
       chrome.scripting.executeScript({
         target: { tabId },
-        func: (m, y) => { window.__targetMonth = m; window.__targetYear = y; },
-        args: [targetData.month, targetData.year]
+        func: (m, y, ws, we) => {
+          window.__targetMonth = m;
+          window.__targetYear = y;
+          window.__targetWeekStart = ws;
+          window.__targetWeekEnd = we;
+        },
+        args: [targetData.month, targetData.year, weekStart, weekEnd]
       }, injectCommon);
     } else {
       injectCommon();
