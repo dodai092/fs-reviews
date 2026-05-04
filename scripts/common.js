@@ -229,6 +229,16 @@
     return null;
   }
 
+  function parseMonthYear(text) {
+    if (!text) return null;
+    const parts = text.trim().split(/\s+/);
+    if (parts.length < 2) return null;
+    const month = MONTH_FULL_TO_IDX[parts[0].toLowerCase()];
+    const year = parseInt(parts[1], 10);
+    if (month === undefined || isNaN(year)) return null;
+    return { month, year };
+  }
+
   // ─── 6. LANGUAGE FORMATTER ──────────────────────────────────────────────────
   const LANG_MAP = { EN: "eng", ES: "esp", DE: "deu", FR: "fra", IT: "ita", PT: "por", HR: "hrv", NL: "nld", PL: "pol", RU: "rus", ZH: "zho", JA: "jpn" };
 
@@ -259,6 +269,14 @@
     let month = now.getMonth() - 1, year = now.getFullYear();
     if (month < 0) { month = 11; year--; }
     return { month, year };
+  }
+
+  function getTargetWeek() {
+    if (window.__targetWeekStart == null) return null;
+    const start = new Date(window.__targetWeekStart);
+    const end = new Date(window.__targetWeekEnd);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
   }
 
   // ─── 9. WEBHOOK INTEGRATION ─────────────────────────────────────────────────
@@ -316,8 +334,10 @@
     log, warn, error,
     extractGuideName, getGuideCity, guessCity, mapTourName,
     formatDate, formatTime, formatTime12, formatISODate, parseDashDate, parseLongDate, parseRelativeDate,
+    parseMonthYear,
     formatLang,
     getTargetMonthYear,
+    getTargetWeek,
     waitForDOMSettle,
     sendDataToWebhook,
     buildTSV,
