@@ -4,8 +4,13 @@
     // --- 1. Auto-Filter Logic ---
     async function ensurePreviousMonthFilter() {
         const { month: targetMonth, year: targetYear } = window.__re.getTargetMonthYear();
-        const targetFrom = window.__re.formatISODate(new Date(targetYear, targetMonth, 1));
-        const targetTo = window.__re.formatISODate(new Date(targetYear, targetMonth + 1, 0));
+        const targetWeek = window.__re.getTargetWeek();
+        const targetFrom = targetWeek
+            ? window.__re.formatISODate(targetWeek.start)
+            : window.__re.formatISODate(new Date(targetYear, targetMonth, 1));
+        const targetTo = targetWeek
+            ? window.__re.formatISODate(targetWeek.end)
+            : window.__re.formatISODate(new Date(targetYear, targetMonth + 1, 0));
 
         const currentUrl = new URL(window.location.href);
         
