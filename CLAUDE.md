@@ -13,12 +13,12 @@ No build required. To reload after changes:
 1. Go to `chrome://extensions`
 2. Click the reload button on "Reviews Extract"
 
-To test: navigate to a supported platform's review page, click the extension icon, select a month, click the platform button.
+To test: navigate to a supported platform's review page, click the extension icon, select a month and optionally a week, click the platform button.
 
 ## Architecture
 
 **Injection flow:**
-1. `popup.js` sets `window.__targetMonth` / `window.__targetYear` on the active tab
+1. `popup.js` sets `window.__targetMonth` / `window.__targetYear` / `window.__targetWeekStart` / `window.__targetWeekEnd` on the active tab
 2. Injects `scripts/common.js` (establishes `window.__re` namespace)
 3. Injects the platform-specific script (e.g. `scripts/airbnb.js`)
 4. Platform script calls `window.__re.sendDataToWebhook(rows, platformName)` and returns `{ success, count }`
@@ -26,23 +26,33 @@ To test: navigate to a supported platform's review page, click the extension ico
 **`scripts/common.js`** exposes `window.__re` with:
 - Guide registry (`GUIDES`) — regex patterns per guide per city; `extractGuideName(text, city)`
 - City/tour mapping — `guessCity(text)`, `mapTourName(rawName)`
-- Date/time formatters — `formatDate`, `parseDashDate`, `parseLongDate`, `parseRelativeDate`
+- Date/time formatters — `formatDate`, `parseDashDate`, `parseLongDate`, `parseRelativeDate`, `parseMonthYear`
 - `sendDataToWebhook(rows, platform)` — POSTs JSON to the hardcoded Google Apps Script URL with `mode: 'no-cors'`
 - `waitForDOMSettle(timeout)` — MutationObserver-based helper for dynamic pages
 - `getTargetMonthYear()` — reads `window.__targetMonth/__targetYear` set by popup
+- `getTargetWeek()` — returns `{ start: Date, end: Date }` or `null` if "All weeks" is selected
 
 **Platform scripts** (`scripts/*.js`) are IIFEs that:
 - Query DOM selectors specific to that platform
 - Extract: Date, Time, Guide, Rating, Tour, City, Language, Platform, Review
-- Filter to the selected month where needed
+- Filter to the selected month/week where needed
 - Return `{ success: bool, count: number }`
 
 **Row schema** (TSV_HEADERS order): `Date | Time | Guide | Rating | Tour | City | Language | Platform | Review`
 
+## Week Filter
+
+The popup shows a "Scrape Week:" dropdown (Mon–Sun weeks) below the month picker. Selecting a specific week passes `window.__targetWeekStart` and `window.__targetWeekEnd` (ms timestamps) to the injected script; `getTargetWeek()` wraps these into `{ start, end }` Date objects.
+
+- **Supported** (Freetour, GetYourGuide, Google Maps, Guruwalk, Viator) — filter reviews to the selected week; "All weeks" falls back to month filtering
+- **Not supported** (Airbnb, TripAdvisor) — week dropdown is disabled; filtering is month-only
+
+GYG and Viator apply week filtering via server-side URL params (`date_from`/`date_to`, `startDate`/`endDate`). Freetour, Guruwalk, and Google Maps filter client-side after scraping.
+
 ## Adding a New Platform
 
 1. Create `scripts/<platform>.js` as an IIFE calling `window.__re.*`
-2. Add an entry to the `PLATFORMS` array in `popup.js` with `{ id, script, domains }`
+2. Add an entry to the `PLATFORMS` array in `popup.js` with `{ id, script, domains }` — add `weekSupported: false` if week filtering is not applicable
 3. Add a button in `popup.html` with the matching `id`
 4. Add host permissions in `manifest.json` if the platform's domain isn't covered
 
