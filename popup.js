@@ -35,7 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function formatWeekLabel(start, end) {
-    return `${MONTH_ABBR[start.getMonth()]} ${start.getDate()} – ${MONTH_ABBR[end.getMonth()]} ${end.getDate()}`;
+    const d = n => String(n).padStart(2, '0');
+    return `${MONTH_ABBR[start.getMonth()]} ${d(start.getDate())} - ${MONTH_ABBR[end.getMonth()]} ${d(end.getDate())}`;
   }
 
   function populateWeekSelect() {

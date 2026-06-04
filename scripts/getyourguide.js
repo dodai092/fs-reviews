@@ -71,7 +71,7 @@
                 let language = "";
                 if (optionText) {
                     const parts = optionText.split("|")[0].trim().split(" ");
-                    language = parts[parts.length - 1] || "";
+                    language = window.__re.formatLang(parts[parts.length - 1] || "");
                 }
 
                 rows.push({

@@ -21,7 +21,7 @@
         window.__re.log(`Processing Page ${pageCount}...`);
 
         const headerDivs = Array.from(currentDoc.querySelectorAll('div.col-md-12')).filter(div => {
-            const txt = div.innerText;
+            const txt = div.textContent;
             return txt.includes("/") && txt.includes(":") && txt.includes("by");
         });
 
@@ -32,8 +32,8 @@
             const body = header.nextElementSibling;
             if (!body || !body.classList.contains('col-md-12')) continue;
             
-            const headerText = header.innerText.trim();
-            const bodyText = body.innerText.trim();
+            const headerText = header.textContent.trim();
+            const bodyText = body.textContent.trim();
 
             const lines = headerText.split("\n").map(l => l.trim()).filter(l => l);
             let date = "", time = "", tour = "", city = "", rating = "";
@@ -86,7 +86,9 @@
 
             if (!date && !tour) continue;
 
-            const review = bodyText.replace(/Report$/, "").trim();
+            const bodyClone = body.cloneNode(true);
+            bodyClone.querySelectorAll("button, a").forEach(el => el.remove());
+            const review = bodyClone.textContent.replace(/\s+/g, " ").trim();
             const guide = window.__re.extractGuideName(`${headerText} ${review}`, city);
             if (!city) city = window.__re.getGuideCity(guide);
 
@@ -113,9 +115,9 @@
             hasMorePages = false;
         } else {
             // Find "Next" button in the generic parsed document wrapper
-            let nextBtn = currentDoc.querySelector('a[rel="next"]') || 
-                          Array.from(currentDoc.querySelectorAll('.pagination a, .pager a, li a')).find(a => 
-                             a.innerText.trim() === '»' || a.innerText.toLowerCase().includes('next')
+            let nextBtn = currentDoc.querySelector('a[rel="next"]') ||
+                          Array.from(currentDoc.querySelectorAll('.pagination a, .pager a, li a')).find(a =>
+                             a.textContent.trim() === '»' || a.textContent.toLowerCase().includes('next')
                           );
 
             if (nextBtn && nextBtn.href && !nextBtn.closest('li')?.classList.contains('disabled')) {

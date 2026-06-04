@@ -124,22 +124,11 @@
         }
 
         // --- 4. Find and Click "Next" ---
-        let nextBtn = null;
-        const nextIcon = document.querySelector('iconify-icon[icon="tabler:player-track-next-filled"]');
-        if (nextIcon) {
-            nextBtn = nextIcon.closest('button');
-        }
-        
-        if (!nextBtn) {
-            nextBtn = Array.from(document.querySelectorAll('a, button, li')).find(el => {
-                const label = (el.getAttribute('aria-label') || '').toLowerCase();
-                const text = el.innerText.trim().toLowerCase();
-                const rel = el.getAttribute('rel');
-                return label.includes('next') || text === 'next' || text === '›' || text === '»' || rel === 'next';
-            });
-        }
+        // The pagination bar is: <div><p>Page N</p></div> <button>→</button>
+        const pageEl = Array.from(document.querySelectorAll('p')).find(p => /^Page \d+$/.test(p.textContent.trim()));
+        const nextBtn = pageEl?.parentElement?.nextElementSibling;
 
-        if (nextBtn && !nextBtn.hasAttribute('disabled') && !nextBtn.className.includes('disabled')) {
+        if (nextBtn && nextBtn.tagName === 'BUTTON' && !nextBtn.disabled && !nextBtn.hasAttribute('disabled')) {
             window.__re.log("Clicking 'Next' page...");
             nextBtn.click();
             

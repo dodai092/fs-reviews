@@ -41,9 +41,9 @@
     // ── Zagreb ──────────────────────────────────────────────────────────────────
     { fullName: "Luka Pelicarić", city: "zg", patterns: [/\bluka\b/i, /\bluca\b/i], aliases: [/\blooka\b/i, /\blucca\b/i, /\blukka\b/i] },
     { fullName: "Vid Dorić", city: "zg", patterns: [/\bvid\b/i, /\bveed\b/i], aliases: [/\bvidd\b/i] },
-    { fullName: "Diana Bolić", city: "zg", patterns: [/\bdiana\b/i, /\bdiane\b/i], aliases: [/\bdianna\b/i, /\bdyana\b/i] },
+    { fullName: "Diana Bolić", city: "zg", patterns: [/\bdiana\b/i, /\bdiane\b/i], aliases: [/\bdianna\b/i, /\bdyana\b/i, /\bdeanna\b/i] },
     { fullName: "Ivana Čakarić", city: "zg", patterns: [/\bivana\b/i], aliases: [/\bivanna\b/i, /\bčakarić\b/i, /\bcakaric\b/i] },
-    { fullName: "Darko Crnolatac", city: "zg", patterns: [/\bdarko\b/i], aliases: [/\bdarco\b/i, /\bdarkko\b/i] },
+    { fullName: "Darko Crnolatac", city: "zg", patterns: [/\bdarko\b/i], aliases: [/\bdarco\b/i, /\bdarkko\b/i, /\bdrako\b/i] },
     { fullName: "Katarina Novoselac", city: "zg", patterns: [/\bkatarina\b/i], aliases: [/\bcatherina\b/i, /\bkatharina\b/i, /\bcatarina\b/i, /\bkaterina\b/i, /\bkatrina\b/i] },
     { fullName: "Nikolina Folnović", city: "zg", patterns: [/\bnikolina(\s+f)?\b/i], aliases: [/\bnickolina\b/i, /\bnicolina\b/i, /\bnikolena\b/i, /\bnikolin\b/i] },
     { fullName: "Iva Pavlović", city: "zg", patterns: [/\biva\b/i], aliases: [] },
@@ -61,7 +61,7 @@
     { fullName: "Tonka Baričević", city: "zd", patterns: [/\btonka\b/i], aliases: [/\bbaričević\b/i, /\bbaricevic\b/i] },
     // ── Split ───────────────────────────────────────────────────────────────────
     { fullName: "Marina Krolo", city: "st", patterns: [/\bmarina\b/i], aliases: [/\bkrolo\b/i] },
-    { fullName: "Marija Močić", city: "st", patterns: [/\bmarija\b/i], aliases: [/\bmočić\b/i, /\bmocic\b/i] },
+    { fullName: "Marija Močić", city: "st", patterns: [/\bmarija\b/i], aliases: [/\bmočić\b/i, /\bmocic\b/i, /\bmaria\b/i] }, // /maria/ is safe only when city='st' is resolved; will false-match cross-city if guessCity returns ''
     { fullName: "Ivana Čagalj", city: "st", patterns: [/\bčagalj\b/i, /\bcagalj\b/i], aliases: [/\bivana\s+č/i] },
     { fullName: "Petra Lučev", city: "st", patterns: [/\bpetra\b/i], aliases: [/\blučev\b/i, /\blucev\b/i] },
     { fullName: "Bruno Beara", city: "st", patterns: [/\bbruno\b/i], aliases: [/\bbeara\b/i] },
@@ -121,7 +121,7 @@
     { keywords: ["zagreb: communism and croatian homeland war", "croatian homeland war", "communism", "homeland war"], shortName: "war" },
     { keywords: ["free spirit walking tour", "free spirit"], shortName: "free" },
     { keywords: ["zagreb food tour", "food tour"], shortName: "food" },
-    { keywords: ["guided city tour with wwii tunnels", "Zagreb Highlights: Old Town, WWII tunnel, Funicular, Tasting", "Zagreb Highlights: Old Town, WWII tunnels, Funicular & Tastings", "Guided City Tour with WWII Tunnels (Free Tour)", "best zagreb", "zagreb must-sees", "best of zagreb"], shortName: "best" },
+    { keywords: ["guided city tour with wwii tunnels", "Zagreb Highlights: Old Town, WWII tunnel, Funicular, Tasting", "Zagreb Highlights: Old Town, WWII tunnels, Funicular & Tastings", "Guided City Tour with WWII Tunnels (Free Tour)", "best zagreb", "zagreb must-sees", "best of zagreb", "Zadar Highlights: Old Town, Sea Organ, Forum & Tastings", "wwii tunnel, funicular"], shortName: "best" },
     { keywords: ["big zagreb private"], shortName: "big" },
     { keywords: ["old zagreb private"], shortName: "old" },
   ];
@@ -139,7 +139,7 @@
 
   // ─── 5. DATE & TIME FORMATTERS ──────────────────────────────────────────────
   const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const MONTH_FULL_TO_IDX = { january: 0, february: 1, march: 2, april: 3, may: 4, june: 5, july: 6, august: 7, september: 8, october: 9, november: 10, december: 11 };
+  const MONTH_FULL_TO_IDX = { january: 0, february: 1, march: 2, april: 3, may: 4, june: 5, july: 6, august: 7, september: 8, october: 9, november: 10, december: 11, jan: 0, feb: 1, mar: 2, apr: 3, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
 
   function formatDate(value) {
     if (!value) return "";
@@ -258,12 +258,16 @@
   function waitForDOMSettle(timeout = 3000) {
     return new Promise(resolve => {
       let timer;
+      const done = () => { observer.disconnect(); clearTimeout(timer); resolve(); };
       const observer = new MutationObserver(() => {
         clearTimeout(timer);
-        timer = setTimeout(() => { observer.disconnect(); resolve(); }, 300);
+        timer = setTimeout(done, 300);
       });
       observer.observe(document.body, { childList: true, subtree: true });
-      timer = setTimeout(() => { observer.disconnect(); resolve(); }, timeout);
+      // Fast path: if DOM is already quiet, resolve after 300ms instead of full timeout
+      timer = setTimeout(done, 300);
+      // Hard cap so we never hang indefinitely
+      setTimeout(done, timeout);
     });
   }
 
