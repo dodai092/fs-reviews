@@ -52,8 +52,9 @@
                 const starWrappers = Array.from(card.querySelectorAll(".grid.grid-flow-col"));
                 const mainRatingWrapper = starWrappers.find(w => w.querySelector("svg"));
                 if (mainRatingWrapper) {
-                    ratingVal = Array.from(mainRatingWrapper.querySelectorAll("svg"))
-                        .filter(svg => svg.classList.contains("text-secondary-500"))
+                    // Filled vs. empty stars share the same CSS classes here; only the SVG path shape differs.
+                    ratingVal = Array.from(mainRatingWrapper.querySelectorAll("svg path"))
+                        .filter(path => (path.getAttribute("d") || "").trim().toLowerCase().startsWith("m12 17.275l-4.15 2.5"))
                         .length.toString();
                 }
 
@@ -94,7 +95,7 @@
                 if (!cityVal) cityVal = window.__re.getGuideCity(guideVal);
 
                 let reviewVal = "";
-                const reviewMatch = text.match(/-\s[A-Z][a-z]{2}\s\d{4}\n([\s\S]*?)Content visible only for gurus/);
+                const reviewMatch = text.match(/(?:-\s)?[A-Z][a-z]{2}\s\d{4}\n([\s\S]*?)Content visible only for gurus/);
                 if (reviewMatch) reviewVal = reviewMatch[1].trim();
 
                 allRows.push({
