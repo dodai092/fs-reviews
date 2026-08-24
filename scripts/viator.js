@@ -25,7 +25,18 @@
             window.__re.log(`Filter not set correctly. Redirecting to: ${targetFrom} - ${targetTo}`);
             currentUrl.searchParams.set(paramStart, targetFrom);
             currentUrl.searchParams.set(paramEnd, targetTo);
-            
+
+            // Hand off the target month/week to the background script so it can
+            // re-inject and resume scraping automatically once this tab finishes reloading.
+            chrome.runtime.sendMessage({
+                action: 'schedule-continue',
+                script: 'viator.js',
+                targetMonth: window.__targetMonth,
+                targetYear: window.__targetYear,
+                targetWeekStart: window.__targetWeekStart,
+                targetWeekEnd: window.__targetWeekEnd,
+            });
+
             window.location.href = currentUrl.toString();
             return false;
         }

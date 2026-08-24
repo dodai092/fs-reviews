@@ -24,6 +24,17 @@
             currentUrl.searchParams.set('date_from', targetFrom);
             currentUrl.searchParams.set('date_to', targetTo);
             
+            // Hand off the target month/week to the background script so it can
+            // re-inject and resume scraping automatically once this tab finishes reloading.
+            chrome.runtime.sendMessage({
+                action: 'schedule-continue',
+                script: 'getyourguide.js',
+                targetMonth: window.__targetMonth,
+                targetYear: window.__targetYear,
+                targetWeekStart: window.__targetWeekStart,
+                targetWeekEnd: window.__targetWeekEnd,
+            });
+
             // Redirect the browser. The user will need to click the extension again after it loads.
             window.location.href = currentUrl.toString();
             return false; // Indicate that we are reloading, so stop scraping.

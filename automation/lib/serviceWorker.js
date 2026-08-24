@@ -1,7 +1,12 @@
+function findExtensionWorker(context) {
+  return context.serviceWorkers().find((w) => w.url().startsWith('chrome-extension://'));
+}
+
 async function getExtensionWorker(context) {
-  let worker = context.serviceWorkers()[0];
+  let worker = findExtensionWorker(context);
   if (!worker) {
-    worker = await context.waitForEvent('serviceworker', { timeout: 15000 });
+    const event = await context.waitForEvent('serviceworker', { timeout: 15000 });
+    worker = event.url().startsWith('chrome-extension://') ? event : findExtensionWorker(context);
   }
   return worker;
 }
@@ -16,9 +21,14 @@ async function injectAndScrape({ worker, page, scriptFile, weekStart, weekEnd })
       if (!tab) return { error: `No tab found matching URL: ${url}` };
       const tabId = tab.id;
 
-      const now = new Date();
-      const targetMonth = now.getMonth();
-      const targetYear = now.getFullYear();
+      // For weekSupported:false platforms (Airbnb, TripAdvisor) run.js passes
+      // weekStart: null, so we fall back to "now" as a reasonable default — a known
+      // limitation (it means "current month," not the target week) that isn't solved here.
+      // When weekStart IS provided, derive month/year from the target week, not from
+      // whatever day the automation happens to run on.
+      const monthYearSource = weekStart ? new Date(weekStart) : new Date();
+      const targetMonth = monthYearSource.getMonth();
+      const targetYear = monthYearSource.getFullYear();
 
       await chrome.scripting.executeScript({
         target: { tabId },
