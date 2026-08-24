@@ -10,7 +10,18 @@
   ],
   "host_permissions": [
     "https://script.google.com/",
-    "https://script.googleusercontent.com/"
+    "https://script.googleusercontent.com/",
+    "https://supplier.getyourguide.com/*",
+    "https://supplier.viator.com/*",
+    "https://www.airbnb.com/*",
+    "https://www.airbnb.co.uk/*",
+    "https://www.freetour.com/*",
+    "https://www.getyourguide.com/*",
+    "https://www.google.com/maps/*",
+    "https://guruwalk.com/*",
+    "https://www.guruwalk.com/*",
+    "https://www.viator.com/*",
+    "https://www.tripadvisor.com/*"
   ],
   "action": {
     "default_popup": "popup.html",
