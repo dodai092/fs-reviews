@@ -96,11 +96,12 @@ function buildGuideMatchingPrompt_(rows) {
   return GUIDE_MATCHING_RULES + '\n\nData to Process:\n\n' + dataLines.join('\n');
 }
 
-// Verified against ai.google.dev/gemini-api/docs/models on 2026-08-24: gemini-2.0-flash is
-// deprecated (shut down June 1, 2026); gemini-3.7-flash and gemini-2.5-flash are both current
-// stable flash-tier models. Tried in order; a 503 (model overloaded) on one falls through to
-// the next rather than failing the whole run.
-var GEMINI_MODELS = ['gemini-3.7-flash', 'gemini-2.5-flash'];
+// gemini-2.0-flash is shut down. gemini-2.5-flash 404s on newly-created projects ("no longer
+// available to new users" per the API's own error, which contradicted the general docs — that
+// error is the authoritative source for what a given project can actually call). The live API
+// itself pointed to gemini-3.6-flash as the replacement. Tried in order; a 503 (model
+// overloaded) on one falls through to the next rather than failing the whole run.
+var GEMINI_MODELS = ['gemini-3.7-flash', 'gemini-3.6-flash'];
 
 function callGeminiForCorrections_(promptText) {
   var apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
