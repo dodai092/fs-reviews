@@ -8,6 +8,14 @@ const PROFILE_DIRECTORY = 'REPLACE_WITH_REAL_PROFILE_FOLDER_NAME'; // e.g. "Prof
 const EXTENSION_PATH = path.join(__dirname, '..');
 
 async function main() {
+  if (PROFILE_DIRECTORY.includes('REPLACE_WITH_REAL')) {
+    throw new Error(
+      'PROFILE_DIRECTORY is still a placeholder. Open the dedicated Chrome profile, ' +
+        'navigate to chrome://version, and copy the folder name from "Profile Path" ' +
+        '(e.g. "Profile 5") into PROFILE_DIRECTORY in smoke-test.js — see automation/README.md.'
+    );
+  }
+
   for (const headless of [true, false]) {
     console.log(`\n--- Trying headless=${headless} ---`);
     let context;

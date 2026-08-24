@@ -17,6 +17,11 @@ test('buildReportText includes the error message for a failed platform', () => {
   assert.match(text, /airbnb: error - selector not found/);
 });
 
+test('buildReportText reports a platform with no reviews this period', () => {
+  const text = buildReportText([{ id: 'freetour', status: 'noReviews' }]);
+  assert.match(text, /freetour: no reviews this period/);
+});
+
 test('buildReportText handles a mixed run', () => {
   const text = buildReportText([
     { id: 'tripadvisor', status: 'success', count: 12 },

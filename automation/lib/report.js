@@ -5,6 +5,7 @@ function buildReportText(results) {
     .map((r) => {
       if (r.status === 'success') return `${r.id}: ${r.count} reviews sent`;
       if (r.status === 'needsReauth') return `${r.id}: needs re-login`;
+      if (r.status === 'noReviews') return `${r.id}: no reviews this period`;
       return `${r.id}: error - ${r.message}`;
     })
     .join('\n');
