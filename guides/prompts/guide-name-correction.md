@@ -11,7 +11,7 @@
 
 **Source:** `00. Review HUB.xlsx` → `Help` sheet → cell `J2`. This is the current, in-use version. Two earlier drafts (`G2` "Names from Schedule" and `H2` "Names from Schedule and Review Text") exist in the same sheet but are superseded — they matched primarily against the weekly schedule; this version trusts the review text first and treats the schedule as unnecessary, which is simpler to run since it doesn't require a freshly reformatted schedule as an input.
 
-**How to use:** paste this prompt into Claude, then paste the batch of review rows to check after "Data to Process:". Paste the corrected table back over the reviewed rows in the Review HUB sheet.
+**How to use:** paste this prompt into a claude.ai (or similar) chat, then paste the batch of review rows to check after "Data to Process:". The response is a JSON array of proposed changes (only for rows that actually need a correction) — apply them by hand to the named row numbers in the Review HUB sheet's Guide column.
 
 ---
 
@@ -28,7 +28,7 @@ Analyze the Review: Read the Review text carefully to see if a specific tour gui
 
 Compare: Compare the name found in the Review against the name in the Guide column.
 
-Keep Existing (Default): If the review does NOT mention a name, or if the name mentioned matches the Guide column (even with slight misspellings), do NOT change anything. Output the existing Guide name.
+Keep Existing (Default): If the review does NOT mention a name, or if the name mentioned matches the Guide column (even with slight misspellings), do NOT change anything — do not propose a correction for this row.
 
 Update if Contradictory: If the review explicitly names a guide that is clearly different from the one in the Guide column, you must propose the correct one.
 

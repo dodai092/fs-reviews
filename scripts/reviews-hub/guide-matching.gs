@@ -215,6 +215,7 @@ function resolveGuideNamesViaAI() {
     return;
   }
 
+  var stagedCount = 0;
   if (corrections.length > 0) {
     var reviewSheet = getOrCreateGuideReviewSheet_(ss);
     var rowsByNumber = {};
@@ -222,10 +223,15 @@ function resolveGuideNamesViaAI() {
 
     corrections.forEach(function (c) {
       var source = rowsByNumber[c.row];
-      var reviewText = source ? String(source.review).slice(0, 200) : '';
+      if (!source) {
+        logGuideMatchingError_(ss, 'Gemini returned row ' + c.row + ' which was not in the batch — skipped.');
+        return;
+      }
+      var reviewText = String(source.review).slice(0, 200);
       reviewSheet.appendRow([
         false, sheetName, c.row, c.currentGuide, c.suggestedGuide, reviewText, c.reason,
       ]);
+      stagedCount++;
     });
   }
 
@@ -233,7 +239,7 @@ function resolveGuideNamesViaAI() {
   ui.alert(
     'Resolve Complete',
     'Checked ' + rows.length + ' row(s) on "' + sheetName + '". ' +
-      corrections.length + ' suggestion(s) added to "Guide Review".',
+      stagedCount + ' suggestion(s) added to "Guide Review".',
     ui.ButtonSet.OK
   );
 }
@@ -267,6 +273,11 @@ function applyApprovedCorrections() {
     var sourceSheet = ss.getSheetByName(sourceSheetName);
     if (!sourceSheet) {
       logGuideMatchingError_(ss, 'applyApprovedCorrections: source sheet "' + sourceSheetName + '" not found for staged row ' + (i + 2));
+      continue;
+    }
+
+    if (typeof sourceRow !== 'number' || isNaN(sourceRow) || sourceRow < 2 || sourceRow > sourceSheet.getLastRow()) {
+      logGuideMatchingError_(ss, 'applyApprovedCorrections: invalid source row "' + data[i][2] + '" at staged row ' + (i + 2));
       continue;
     }
 
