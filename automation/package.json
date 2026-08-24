@@ -7,7 +7,7 @@
   "scripts": {
     "smoke-test": "node smoke-test.js",
     "run": "node run.js",
-    "test": "node --test test/"
+    "test": "node --test test/**/*.test.js"
   },
   "dependencies": {
     "playwright": "^1.48.0",
