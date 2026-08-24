@@ -97,8 +97,10 @@ function buildGuideMatchingPrompt_(rows) {
 }
 
 // Verified against ai.google.dev/gemini-api/docs/models on 2026-08-24: gemini-2.0-flash is
-// deprecated (shut down June 1, 2026); gemini-3.7-flash is the current stable flash-tier model.
-var GEMINI_MODEL = 'gemini-3.7-flash';
+// deprecated (shut down June 1, 2026); gemini-3.7-flash and gemini-2.5-flash are both current
+// stable flash-tier models. Tried in order; a 503 (model overloaded) on one falls through to
+// the next rather than failing the whole run.
+var GEMINI_MODELS = ['gemini-3.7-flash', 'gemini-2.5-flash'];
 
 function callGeminiForCorrections_(promptText) {
   var apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
@@ -106,42 +108,53 @@ function callGeminiForCorrections_(promptText) {
     throw new Error('GEMINI_API_KEY is not set in Script Properties.');
   }
 
-  var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + GEMINI_MODEL +
-    ':generateContent?key=' + apiKey;
+  var lastError;
+  for (var m = 0; m < GEMINI_MODELS.length; m++) {
+    var model = GEMINI_MODELS[m];
+    var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model +
+      ':generateContent?key=' + apiKey;
 
-  var response = UrlFetchApp.fetch(url, {
-    method: 'post',
-    contentType: 'application/json',
-    muteHttpExceptions: true,
-    payload: JSON.stringify({
-      contents: [{ parts: [{ text: promptText }] }],
-      generationConfig: { responseMimeType: 'application/json' },
-    }),
-  });
+    var response = UrlFetchApp.fetch(url, {
+      method: 'post',
+      contentType: 'application/json',
+      muteHttpExceptions: true,
+      payload: JSON.stringify({
+        contents: [{ parts: [{ text: promptText }] }],
+        generationConfig: { responseMimeType: 'application/json' },
+      }),
+    });
 
-  var status = response.getResponseCode();
-  if (status !== 200) {
-    throw new Error('Gemini API returned HTTP ' + status + ': ' + response.getContentText());
+    var status = response.getResponseCode();
+    if (status === 503) {
+      lastError = new Error('Gemini API returned HTTP 503 for model "' + model + '": ' + response.getContentText());
+      continue; // model overloaded — try the next one
+    }
+    if (status !== 200) {
+      throw new Error('Gemini API returned HTTP ' + status + ' for model "' + model + '": ' + response.getContentText());
+    }
+
+    var body = JSON.parse(response.getContentText());
+    var text = body.candidates && body.candidates[0] && body.candidates[0].content &&
+      body.candidates[0].content.parts && body.candidates[0].content.parts[0] &&
+      body.candidates[0].content.parts[0].text;
+    if (!text) {
+      throw new Error('Gemini response had no text content: ' + response.getContentText());
+    }
+
+    var corrections;
+    try {
+      corrections = JSON.parse(text);
+    } catch (e) {
+      throw new Error('Could not parse Gemini response as JSON: ' + text);
+    }
+    if (!Array.isArray(corrections)) {
+      throw new Error('Expected a JSON array from Gemini, got: ' + text);
+    }
+    return corrections;
   }
 
-  var body = JSON.parse(response.getContentText());
-  var text = body.candidates && body.candidates[0] && body.candidates[0].content &&
-    body.candidates[0].content.parts && body.candidates[0].content.parts[0] &&
-    body.candidates[0].content.parts[0].text;
-  if (!text) {
-    throw new Error('Gemini response had no text content: ' + response.getContentText());
-  }
-
-  var corrections;
-  try {
-    corrections = JSON.parse(text);
-  } catch (e) {
-    throw new Error('Could not parse Gemini response as JSON: ' + text);
-  }
-  if (!Array.isArray(corrections)) {
-    throw new Error('Expected a JSON array from Gemini, got: ' + text);
-  }
-  return corrections;
+  throw new Error('All Gemini models returned 503 (overloaded): ' + GEMINI_MODELS.join(', ') +
+    '. Last error: ' + lastError);
 }
 
 function test_geminiCorrectionCall() {
