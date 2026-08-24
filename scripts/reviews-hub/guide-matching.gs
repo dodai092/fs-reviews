@@ -106,14 +106,30 @@ function buildGuideMatchingPrompt_(rows) {
 }
 
 /**
- * Menu-bound. Manual fallback for when the Gemini API flow is unavailable. Opens a dialog with
- * a button that copies the prompt to the clipboard and opens a new Gemini chat tab — the user
- * pastes the prompt in, then pastes their sheet rows after "Data to Process:". Reads
- * GUIDE_MATCHING_RULES directly (the same constant the live API call uses) so this can never
- * drift out of sync with what the automated flow actually sends Gemini.
+ * Menu-bound. Manual fallback for when the Gemini API flow is unavailable. Pulls the exact same
+ * rows resolveGuideNamesViaAI would send (new rows since the cursor on the active sheet, same
+ * "already checked — re-check?" prompt if there is nothing new), builds the identical prompt via
+ * buildGuideMatchingPrompt_, and opens a dialog with a button that copies the whole thing —
+ * rules and data together — to the clipboard and opens a new Gemini chat tab in one click.
+ *
+ * Deliberately does NOT advance the cursor: unlike a successful automated run, there is no way
+ * to know whether the user actually finished the manual check in Gemini (they might close the
+ * tab without pasting). Leaving the cursor untouched means these rows still show up next time
+ * "Guide Names From Text" runs — the safe failure mode, at the cost of a possible redundant
+ * re-send if the manual check WAS completed.
  */
 function openGeminiFallbackPrompt() {
-  var promptText = GUIDE_MATCHING_RULES + '\n\nData to Process:\n\n';
+  var ui = SpreadsheetApp.getUi();
+  var context = getRowsToCheck_(ui);
+  if (!context) return;
+
+  if (context.rows.length === 0) {
+    setLastProcessedRow_(context.sheetName, context.lastRow);
+    ui.alert('Nothing To Check', 'No rows with review text in the new range — cursor advanced anyway.', ui.ButtonSet.OK);
+    return;
+  }
+
+  var promptText = buildGuideMatchingPrompt_(context.rows);
   var escaped = promptText
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -122,8 +138,8 @@ function openGeminiFallbackPrompt() {
 
   var html = HtmlService.createHtmlOutput(
     '<div style="font-family: Arial, sans-serif; padding: 4px;">' +
-    '<p style="margin-top:0;">Click the button to copy the prompt and open Gemini in a new tab. ' +
-    'Paste the prompt in, then paste your sheet rows right after &quot;Data to Process:&quot;.</p>' +
+    '<p style="margin-top:0;">Click the button to copy the prompt (with your sheet\'s rows already ' +
+    'included below it) and open Gemini in a new tab — then just paste.</p>' +
     '<button id="copyBtn" style="padding:8px 16px; font-size:14px; cursor:pointer;">Copy | Gemini</button>' +
     '<p id="status" style="color:#188038; font-size:12px; min-height:16px;"></p>' +
     '<p style="font-size:12px; color:#5f6368;">If the automatic copy does not work, the text below is pre-selected — press Ctrl/Cmd+C to copy it manually.</p>' +
@@ -245,15 +261,20 @@ function logGuideMatchingError_(ss, message) {
   errorSheet.appendRow(['Guide Matching Error', '', '', '', message]);
 }
 
-function resolveGuideNamesViaAI() {
-  var ui = SpreadsheetApp.getUi();
+/**
+ * Shared row-gathering logic for both the automated Gemini call (resolveGuideNamesViaAI) and
+ * the manual fallback dialog (openGeminiFallbackPrompt) — both need the exact same "which rows
+ * count as new, and does the user want to re-check an already-fully-checked sheet" behavior.
+ * Returns null if the caller should stop (an alert covering why has already been shown).
+ */
+function getRowsToCheck_(ui) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getActiveSheet();
   var sheetName = sheet.getName();
 
   if (sheetName === 'Error Log' || sheetName === 'Guide Review') {
     ui.alert('Invalid Sheet', 'Switch to a month tab (e.g. "8") before running this.', ui.ButtonSet.OK);
-    return;
+    return null;
   }
 
   var lastRow = sheet.getLastRow();
@@ -261,14 +282,14 @@ function resolveGuideNamesViaAI() {
   if (startRow > lastRow) {
     if (lastRow < 2) {
       ui.alert('Nothing To Check', 'Sheet "' + sheetName + '" has no data rows.', ui.ButtonSet.OK);
-      return;
+      return null;
     }
     var response = ui.alert(
       'Already Checked',
       'This sheet has already been fully checked. Re-check all rows from the top?',
       ui.ButtonSet.YES_NO
     );
-    if (response !== ui.Button.YES) return;
+    if (response !== ui.Button.YES) return null;
     startRow = 2; // re-check every data row, not just rows past the old cursor
   }
 
@@ -282,6 +303,15 @@ function resolveGuideNamesViaAI() {
     if (!review) continue; // nothing to match a name against
     rows.push({ row: actualRow, guide: guide, review: review });
   }
+
+  return { ss: ss, sheetName: sheetName, lastRow: lastRow, rows: rows };
+}
+
+function resolveGuideNamesViaAI() {
+  var ui = SpreadsheetApp.getUi();
+  var context = getRowsToCheck_(ui);
+  if (!context) return;
+  var ss = context.ss, sheetName = context.sheetName, lastRow = context.lastRow, rows = context.rows;
 
   if (rows.length === 0) {
     setLastProcessedRow_(sheetName, lastRow);
