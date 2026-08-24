@@ -19,9 +19,18 @@ async function runPlatform({ context, worker, platform, weekStart, weekEnd, log 
     await page.goto(platform.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(2000); // let client-side redirects/DOM settle
 
-    const hasSelector = async (selector) => (await page.locator(selector).count()) > 0;
-    const wallCheck = await hasSelector(platform.authWallSelectors[0] || '__none__');
-    if (isAuthWall({ url: page.url(), hasSelector: () => wallCheck }, platform)) {
+    // Check all auth-wall selectors upfront and build a lookup set
+    const presentSelectors = new Set();
+    if (platform.authWallSelectors && platform.authWallSelectors.length > 0) {
+      for (const selector of platform.authWallSelectors) {
+        if ((await page.locator(selector).count()) > 0) {
+          presentSelectors.add(selector);
+        }
+      }
+    }
+
+    // Pass a synchronous lookup function to isAuthWall
+    if (isAuthWall({ url: page.url(), hasSelector: (selector) => presentSelectors.has(selector) }, platform)) {
       log(`${platform.id}: auth wall detected at ${page.url()}`);
       return { id: platform.id, status: 'needsReauth' };
     }
