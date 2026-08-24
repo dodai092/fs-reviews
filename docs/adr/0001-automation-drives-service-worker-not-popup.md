@@ -38,3 +38,15 @@ needs a live user gesture at all, for either manual or automated use.
   the initial injection.
 - No changes are needed to `popup.js` or any `scripts/*.js` file — the popup UI keeps working
   exactly as today for manual/ad-hoc use.
+
+## Correction (2026-08-24)
+
+The original text above incorrectly stated that `background.js` and its `chrome.tabs.onUpdated`
+redirect-continuation listener already existed in this repo's committed history. They did not —
+that code existed only as uncommitted work-in-progress in a different checkout of this same
+project, which is what was read while drafting this ADR. The final whole-branch review before
+merge caught the discrepancy: `automation/lib/serviceWorker.js` had nothing to attach to, and the
+GetYourGuide/Viator redirect handoff was never completed. `background.js`, the manifest's
+`background` key, and the `chrome.runtime.sendMessage` handoff in `getyourguide.js`/`viator.js`
+have now been added and committed as part of that fix, making the mechanism described above
+actually true of this branch.
