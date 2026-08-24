@@ -208,7 +208,7 @@ function openGeminiFallbackPrompt() {
 
   if (context.rows.length === 0) {
     setLastProcessedRow_(context.sheetName, context.lastRow);
-    ui.alert('Nothing To Check', 'No rows with review text in the new range — cursor advanced anyway.', ui.ButtonSet.OK);
+    ui.alert('Nothing To Check', 'No rows with review text in the new range. Cursor advanced anyway.', ui.ButtonSet.OK);
     return;
   }
 
@@ -222,10 +222,10 @@ function openGeminiFallbackPrompt() {
   var html = HtmlService.createHtmlOutput(
     '<div style="font-family: Arial, sans-serif; padding: 4px;">' +
     '<p style="margin-top:0;">Click the button to copy the prompt (with your sheet\'s rows already ' +
-    'included below it) and open Gemini in a new tab — then just paste.</p>' +
+    'included below it) and open Gemini in a new tab. Then just paste.</p>' +
     '<button id="copyBtn" style="padding:8px 16px; font-size:14px; cursor:pointer;">Copy | Gemini</button>' +
     '<p id="status" style="color:#188038; font-size:12px; min-height:16px;"></p>' +
-    '<p style="font-size:12px; color:#5f6368;">If the automatic copy does not work, the text below is pre-selected — press Ctrl/Cmd+C to copy it manually.</p>' +
+    '<p style="font-size:12px; color:#5f6368;">If the automatic copy does not work, the text below is pre-selected: press Ctrl/Cmd+C to copy it manually.</p>' +
     '<textarea id="promptBox" readonly style="width:100%; height:220px; font-family:monospace; font-size:11px;">' + escaped + '</textarea>' +
     '<script>' +
     'var promptText = document.getElementById("promptBox").value;' +
@@ -239,7 +239,7 @@ function openGeminiFallbackPrompt() {
     '    try { ok = document.execCommand("copy"); } catch (e) {}' +
     '    status.textContent = ok' +
     '      ? "Copied! Paste it into the new Gemini tab."' +
-    '      : "Could not auto-copy \\u2014 text is selected below, press Ctrl/Cmd+C, then paste it into the new Gemini tab.";' +
+    '      : "Could not auto-copy. The text is selected below: press Ctrl/Cmd+C, then paste it into the new Gemini tab.";' +
     '  }' +
     '  if (navigator.clipboard && navigator.clipboard.writeText) {' +
     '    navigator.clipboard.writeText(promptText).then(function() {' +
@@ -413,7 +413,7 @@ function resolveGuideNamesViaAI() {
 
   if (rows.length === 0) {
     setLastProcessedRow_(sheetName, lastRow);
-    ui.alert('Nothing To Check', 'No rows with review text in the new range — cursor advanced anyway.', ui.ButtonSet.OK);
+    ui.alert('Nothing To Check', 'No rows with review text in the new range. Cursor advanced anyway.', ui.ButtonSet.OK);
     return;
   }
 
@@ -423,7 +423,7 @@ function resolveGuideNamesViaAI() {
     corrections = callGeminiForCorrections_(prompt);
   } catch (e) {
     logGuideMatchingError_(ss, e.toString());
-    ui.alert('Gemini Call Failed', e.toString() + '\n\nCursor was NOT advanced — safe to retry.', ui.ButtonSet.OK);
+    ui.alert('Gemini Call Failed', e.toString() + '\n\nCursor was NOT advanced. Safe to retry.', ui.ButtonSet.OK);
     return;
   }
 
@@ -436,7 +436,7 @@ function resolveGuideNamesViaAI() {
     corrections.forEach(function (c) {
       var source = rowsByNumber[c.row];
       if (!source) {
-        logGuideMatchingError_(ss, 'Gemini returned row ' + c.row + ' which was not in the batch — skipped.');
+        logGuideMatchingError_(ss, 'Gemini returned row ' + c.row + ' which was not in the batch, so it was skipped.');
         return;
       }
       var reviewText = String(source.review).slice(0, 200);
@@ -461,7 +461,7 @@ function applyApprovedCorrections() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var reviewSheet = ss.getSheetByName('Guide Review');
   if (!reviewSheet) {
-    ui.alert('Nothing To Apply', 'No "Guide Review" tab exists yet — run "Resolve Guide Names via AI" first.', ui.ButtonSet.OK);
+    ui.alert('Nothing To Apply', 'No "Guide Review" tab exists yet. Run "Resolve Guide Names via AI" first.', ui.ButtonSet.OK);
     return;
   }
 
