@@ -64,82 +64,118 @@ function test_guideReviewSheetSetup() {
   Logger.log('test_guideReviewSheetSetup: PASS — check the spreadsheet tabs for "Guide Review"');
 }
 
-var GUIDE_MATCHING_RULES =
-  'You are an expert data auditor. Your task is to review a dataset of tour bookings and ' +
-  'correct the Guide column based on the text in the Review column.\n\n' +
-  'Rules:\n\n' +
-  'Analyze the Review: Read the Review text carefully to see if a specific tour guide\'s name ' +
-  'is mentioned. Account for typos, phonetic spellings, translated names (e.g., Peter = Pero, ' +
-  'Catherine = Katarina, Zara = Sara, Nikoletta = Nikolina), or partial names.\n\n' +
-  'Compare: Compare the name found in the Review against the name in the Guide column.\n\n' +
-  'Keep Existing (Default): If the review does NOT mention a name, or if the name mentioned ' +
-  'matches the Guide column (even with slight misspellings), do NOT change anything — do not ' +
-  'propose a correction for this row.\n\n' +
-  'Update if Contradictory: If the review explicitly names a guide that is clearly different ' +
-  'from the one in the Guide column, you must propose the correct one.\n\n' +
-  'Cross-Reference: When proposing a correction, you MUST pick the valid full name from the ' +
-  'Master Guide List below. Ensure the new guide matches the City code in the data (du = ' +
-  'Dubrovnik, zg = Zagreb, zd = Zadar, st = Split).\n\n' +
-  'Master Guide List:\n\n' +
-  'Zagreb (zg): Antonio Sičić, Darko Crnolatac, Diana Bolić, Dora Mlinarek Dominik, Doris ' +
-  'Cvetko Pavišić, Ena Matacun, Iva Pavlović, Ivana Čakarić, Josipa Šiklić, Katarina ' +
-  'Novoselac, Katija Crnčević, Kristina Božić, Luka Pelicarić, Nadir Ivanović, Nikolina ' +
-  'Folnović, Vid Dorić\n' +
-  'Zadar (zd): Andrija Grubić, Tonka Baričević, Matea Duka, Iva Zaplatić, Nikolina Kuzman\n' +
-  'Split (st): Bruno Beara, Ivana Čagalj, Boris Čerina, Lorena Ćelić, Marina Krolo, Petra ' +
-  'Lučev, Marija Močić\n' +
-  'Dubrovnik (du): Lorena Arias, Marin Kalauz, Pero Kusalo, Ivo Miličić, Maja Musulin, Andrea ' +
-  'Rendulić, Nikolina Vidojević, Sara Žanetić, Romana Tomičić\n\n' +
-  'Output Format: Respond with ONLY a JSON array, no markdown fences, no commentary. Include ' +
-  'an entry ONLY for rows where you are proposing a change — omit rows where the existing ' +
-  'Guide value should be kept as-is. Each entry: ' +
-  '{"row": <the Row number from the input>, "currentGuide": <string>, ' +
-  '"suggestedGuide": <string, must be a full name from the Master Guide List>, ' +
-  '"reason": <short string explaining what in the review text justified the change>}. ' +
-  'If no rows need a change, respond with an empty JSON array: []';
+// City display names, in the fixed order the Master Guide List is presented — this part rarely
+// changes and stays hardcoded; the guide names per city are pulled live from Help!A:B below,
+// so a guide joining/leaving/changing city needs updating in exactly one place (the sheet).
+var CITY_DISPLAY_NAMES_ = { zg: 'Zagreb', zd: 'Zadar', st: 'Split', du: 'Dubrovnik' };
+var CITY_ORDER_ = ['zg', 'zd', 'st', 'du'];
+
+// Reads Help!A:B (Guide, City) and formats it exactly like the Master Guide List block used to
+// be hardcoded — one line per city, "City (code): Name1, Name2, ...". A guide row with a city
+// code outside CITY_ORDER_ (a typo) is silently dropped from the list rather than erroring the
+// whole prompt build — low-probability, low-severity (one guide temporarily unmatched, easily
+// noticed and fixed), not worth the complexity of surfacing it here.
+function buildMasterGuideListText_() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Help');
+  if (!sheet) {
+    throw new Error('Master Guide List unavailable: no "Help" sheet found.');
+  }
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    throw new Error('Master Guide List unavailable: "Help" sheet has no guide rows in A:B.');
+  }
+
+  var values = sheet.getRange(2, 1, lastRow - 1, 2).getValues(); // A:B — Guide, City
+  var byCity = {};
+  values.forEach(function (row) {
+    var name = row[0], city = row[1];
+    if (!name || !city) return; // Help has other columns; skip rows with no guide/city here
+    if (!byCity[city]) byCity[city] = [];
+    byCity[city].push(name);
+  });
+
+  return CITY_ORDER_.map(function (code) {
+    var names = (byCity[code] || []).slice().sort();
+    return CITY_DISPLAY_NAMES_[code] + ' (' + code + '): ' + names.join(', ');
+  }).join('\n');
+}
+
+function buildGuideMatchingRulesText_() {
+  return 'You are an expert data auditor. Your task is to review a dataset of tour bookings and ' +
+    'correct the Guide column based on the text in the Review column.\n\n' +
+    'Rules:\n\n' +
+    'Analyze the Review: Read the Review text carefully to see if a specific tour guide\'s name ' +
+    'is mentioned. Account for typos, phonetic spellings, translated names (e.g., Peter = Pero, ' +
+    'Catherine = Katarina, Zara = Sara, Nikoletta = Nikolina), or partial names.\n\n' +
+    'Compare: Compare the name found in the Review against the name in the Guide column.\n\n' +
+    'Keep Existing (Default): If the review does NOT mention a name, or if the name mentioned ' +
+    'matches the Guide column (even with slight misspellings), do NOT change anything — do not ' +
+    'propose a correction for this row.\n\n' +
+    'Update if Contradictory or Filling a Blank: If the review explicitly names a guide that is ' +
+    'clearly different from the one in the Guide column — including when the Guide column is ' +
+    '"N/A" and the review names anyone at all — you must propose the correct one.\n\n' +
+    'External Guides: If the review describes a guide who is clearly external, subcontracted, ' +
+    'or freelance (not a member of the regular team, per the review\'s own wording) rather than ' +
+    'a typo or alias of someone on the Master Guide List, propose "vanjski" as the corrected ' +
+    'value instead of picking a name from the list.\n\n' +
+    'Cross-Reference: When proposing a correction, you MUST pick the valid full name from the ' +
+    'Master Guide List below, unless the External Guides rule above applies. Ensure the new ' +
+    'guide matches the City code in the data (du = Dubrovnik, zg = Zagreb, zd = Zadar, st = ' +
+    'Split).\n\n' +
+    'Master Guide List:\n\n' +
+    buildMasterGuideListText_() + '\n\n' +
+    'Output Format: Respond with ONLY a JSON array, no markdown fences, no commentary. Include ' +
+    'an entry ONLY for rows where you are proposing a change — omit rows where the existing ' +
+    'Guide value should be kept as-is. Each entry: ' +
+    '{"row": <the Row number from the input>, "currentGuide": <string>, ' +
+    '"suggestedGuide": <string, must be a full name from the Master Guide List, or "vanjski" ' +
+    'for an external guide>, ' +
+    '"reason": <short string explaining what in the review text justified the change>}. ' +
+    'If no rows need a change, respond with an empty JSON array: []';
+}
 
 function buildGuideMatchingPrompt_(rows) {
   var dataLines = rows.map(function (r) {
     return 'Row ' + r.row + ' | Current Guide: ' + r.guide + ' | Review: ' + r.review;
   });
-  return GUIDE_MATCHING_RULES + '\n\nData to Process:\n\n' + dataLines.join('\n');
+  return buildGuideMatchingRulesText_() + '\n\nData to Process:\n\n' + dataLines.join('\n');
 }
 
 // Manual-chat variant of the prompt — a genuinely different output contract from
-// GUIDE_MATCHING_RULES above, not a copy that drifted. A human reading a Gemini chat response
-// wants a corrected table with a "Correction Note" column they can read and paste straight back
-// over the original range; the automated flow needs machine-parseable JSON instead. Kept as a
-// separate constant deliberately, matching guides/prompts/guide-name-correction.md.
-var GUIDE_MATCHING_RULES_MANUAL =
-  'Role & Task:\n\n' +
-  'You are an expert data auditor. Your task is to review a dataset of tour bookings and ' +
-  'correct the Guide column based on the text in the Review column.\n\n' +
-  'Rules:\n\n' +
-  'Analyze the Review: Read the Review text carefully to see if a specific tour guide\'s name ' +
-  'is mentioned. Account for typos, phonetic spellings, translated names (e.g., Peter = Pero, ' +
-  'Catherine = Katarina, Zara = Sara, Nikoletta = Nikolina), or partial names.\n\n' +
-  'Compare: Compare the name found in the Review against the name in the Guide column.\n\n' +
-  'Keep Existing (Default): If the review does NOT mention a name, or if the name mentioned ' +
-  'matches the Guide column (even with slight misspellings), do NOT change anything. Output ' +
-  'the existing Guide name.\n\n' +
-  'Update if Contradictory: If the review explicitly names a guide that is clearly different ' +
-  'from the one in the Guide column, you must update the Guide name to the correct one.\n\n' +
-  'Cross-Reference: When correcting a name, you MUST pick the valid full name from the ' +
-  'provided "Master Guide List" below. Ensure the new guide matches the City code in the data ' +
-  '(du = Dubrovnik, zg = Zagreb, zd = Zadar, st = Split).\n\n' +
-  'Output Format: Provide a final, corrected table. Add a brief column at the end called ' +
-  '"Correction Note" detailing what you changed and why (e.g., "Changed from Lorena Arias to ' +
-  'Marin Kalauz based on review").\n\n' +
-  'Master Guide List:\n\n' +
-  'Zagreb (zg): Antonio Sičić, Darko Crnolatac, Diana Bolić, Dora Mlinarek Dominik, Doris ' +
-  'Cvetko Pavišić, Ena Matacun, Iva Pavlović, Ivana Čakarić, Josipa Šiklić, Katarina ' +
-  'Novoselac, Katija Crnčević, Kristina Božić, Luka Pelicarić, Nadir Ivanović, Nikolina ' +
-  'Folnović, Vid Dorić\n' +
-  'Zadar (zd): Andrija Grubić, Tonka Baričević, Matea Duka, Iva Zaplatić, Nikolina Kuzman\n' +
-  'Split (st): Bruno Beara, Ivana Čagalj, Boris Čerina, Lorena Ćelić, Marina Krolo, Petra ' +
-  'Lučev, Marija Močić\n' +
-  'Dubrovnik (du): Lorena Arias, Marin Kalauz, Pero Kusalo, Ivo Miličić, Maja Musulin, Andrea ' +
-  'Rendulić, Nikolina Vidojević, Sara Žanetić, Romana Tomičić';
+// buildGuideMatchingRulesText_ above, not a copy that drifted. A human reading a Gemini chat
+// response wants a corrected table with a "Correction Note" column they can read and paste
+// straight back over the original range; the automated flow needs machine-parseable JSON
+// instead. Kept separate deliberately, matching guides/prompts/guide-name-correction.md.
+function buildGuideMatchingRulesManualText_() {
+  return 'Role & Task:\n\n' +
+    'You are an expert data auditor. Your task is to review a dataset of tour bookings and ' +
+    'correct the Guide column based on the text in the Review column.\n\n' +
+    'Rules:\n\n' +
+    'Analyze the Review: Read the Review text carefully to see if a specific tour guide\'s name ' +
+    'is mentioned. Account for typos, phonetic spellings, translated names (e.g., Peter = Pero, ' +
+    'Catherine = Katarina, Zara = Sara, Nikoletta = Nikolina), or partial names.\n\n' +
+    'Compare: Compare the name found in the Review against the name in the Guide column.\n\n' +
+    'Keep Existing (Default): If the review does NOT mention a name, or if the name mentioned ' +
+    'matches the Guide column (even with slight misspellings), do NOT change anything. Output ' +
+    'the existing Guide name.\n\n' +
+    'Update if Contradictory or Filling a Blank: If the review explicitly names a guide that is ' +
+    'clearly different from the one in the Guide column — including when the Guide column is ' +
+    '"N/A" and the review names anyone at all — you must update the Guide name to the correct ' +
+    'one.\n\n' +
+    'External Guides: If the review describes a guide who is clearly external, subcontracted, ' +
+    'or freelance (not a member of the regular team) rather than a typo or alias of someone on ' +
+    'the Master Guide List, write "vanjski" as the corrected value instead of picking a name ' +
+    'from the list.\n\n' +
+    'Cross-Reference: When correcting a name, you MUST pick the valid full name from the ' +
+    'provided "Master Guide List" below, unless the External Guides rule above applies. Ensure ' +
+    'the new guide matches the City code in the data (du = Dubrovnik, zg = Zagreb, zd = Zadar, ' +
+    'st = Split).\n\n' +
+    'Output Format: Provide a final, corrected table. Add a brief column at the end called ' +
+    '"Correction Note" detailing what you changed and why (e.g., "Changed from Lorena Arias to ' +
+    'Marin Kalauz based on review").\n\n' +
+    'Master Guide List:\n\n' +
+    buildMasterGuideListText_();
+}
 
 // Full original rows (all 9 sheet columns, tab-separated), not the reduced Row/Guide/Review
 // triplet buildGuideMatchingPrompt_ uses — the table this returns is meant to be pasted
@@ -148,7 +184,7 @@ function buildGuideMatchingPromptManual_(rows) {
   var dataLines = rows.map(function (r) {
     return r.fullRow.join('\t');
   });
-  return GUIDE_MATCHING_RULES_MANUAL + '\n\nData to Process:\n\n' + dataLines.join('\n');
+  return buildGuideMatchingRulesManualText_() + '\n\nData to Process:\n\n' + dataLines.join('\n');
 }
 
 /**
