@@ -124,7 +124,7 @@ function openGeminiFallbackPrompt() {
     '<div style="font-family: Arial, sans-serif; padding: 4px;">' +
     '<p style="margin-top:0;">Click the button to copy the prompt and open Gemini in a new tab. ' +
     'Paste the prompt in, then paste your sheet rows right after &quot;Data to Process:&quot;.</p>' +
-    '<button id="copyBtn" style="padding:8px 16px; font-size:14px; cursor:pointer;">Copy Prompt &amp; Open Gemini</button>' +
+    '<button id="copyBtn" style="padding:8px 16px; font-size:14px; cursor:pointer;">Copy | Gemini</button>' +
     '<p id="status" style="color:#188038; font-size:12px; min-height:16px;"></p>' +
     '<p style="font-size:12px; color:#5f6368;">If the automatic copy does not work, the text below is pre-selected — press Ctrl/Cmd+C to copy it manually.</p>' +
     '<textarea id="promptBox" readonly style="width:100%; height:220px; font-family:monospace; font-size:11px;">' + escaped + '</textarea>' +
