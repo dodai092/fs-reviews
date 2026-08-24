@@ -36,9 +36,17 @@ function getOrCreateGuideReviewSheet_(ss) {
 
   sheet = ss.insertSheet('Guide Review');
   sheet.appendRow(GUIDE_REVIEW_HEADERS);
-  var checkboxRange = sheet.getRange(2, 1, sheet.getMaxRows() - 1, 1);
-  checkboxRange.insertCheckboxes();
+  sheet.getRange(1, 1, 1, GUIDE_REVIEW_HEADERS.length).setFontWeight('bold');
   return sheet;
+}
+
+// Appends a suggestion row and gives it a live checkbox in column A — checkboxes are added
+// per-row on write, not pre-filled across the sheet (a pre-filled checkbox writes an actual
+// FALSE value into every cell, which made getLastRow() see 1000 rows of "data" and pushed every
+// appendRow() past row 1000 instead of right after the real rows).
+function appendGuideReviewRow_(sheet, rowValues) {
+  sheet.appendRow(rowValues);
+  sheet.getRange(sheet.getLastRow(), 1).insertCheckboxes();
 }
 
 function test_guideReviewSheetSetup() {
@@ -242,7 +250,7 @@ function resolveGuideNamesViaAI() {
         return;
       }
       var reviewText = String(source.review).slice(0, 200);
-      reviewSheet.appendRow([
+      appendGuideReviewRow_(reviewSheet, [
         false, sheetName, c.row, c.currentGuide, c.suggestedGuide, reviewText, c.reason,
       ]);
       stagedCount++;
