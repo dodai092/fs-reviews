@@ -164,3 +164,76 @@ function test_geminiCorrectionCall() {
 
   Logger.log('test_geminiCorrectionCall: PASS');
 }
+
+function logGuideMatchingError_(ss, message) {
+  var errorSheet = ss.getSheetByName('Error Log') || ss.insertSheet('Error Log');
+  errorSheet.appendRow(['Guide Matching Error', '', '', '', message]);
+}
+
+function resolveGuideNamesViaAI() {
+  var ui = SpreadsheetApp.getUi();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getActiveSheet();
+  var sheetName = sheet.getName();
+
+  if (sheetName === 'Error Log' || sheetName === 'Guide Review') {
+    ui.alert('Invalid Sheet', 'Switch to a month tab (e.g. "8") before running this.', ui.ButtonSet.OK);
+    return;
+  }
+
+  var lastRow = sheet.getLastRow();
+  var startRow = getLastProcessedRow_(sheetName) + 1;
+  if (startRow > lastRow) {
+    ui.alert('Nothing New', 'No new rows since the last run on "' + sheetName + '".', ui.ButtonSet.OK);
+    return;
+  }
+
+  var numRows = lastRow - startRow + 1;
+  var values = sheet.getRange(startRow, 1, numRows, 9).getValues(); // A:I — Date..Review
+  var rows = [];
+  for (var i = 0; i < values.length; i++) {
+    var actualRow = startRow + i;
+    var guide = values[i][2] || '';   // column C
+    var review = values[i][8] || '';  // column I
+    if (!review) continue; // nothing to match a name against
+    rows.push({ row: actualRow, guide: guide, review: review });
+  }
+
+  if (rows.length === 0) {
+    setLastProcessedRow_(sheetName, lastRow);
+    ui.alert('Nothing To Check', 'No rows with review text in the new range — cursor advanced anyway.', ui.ButtonSet.OK);
+    return;
+  }
+
+  var corrections;
+  try {
+    var prompt = buildGuideMatchingPrompt_(rows);
+    corrections = callGeminiForCorrections_(prompt);
+  } catch (e) {
+    logGuideMatchingError_(ss, e.toString());
+    ui.alert('Gemini Call Failed', e.toString() + '\n\nCursor was NOT advanced — safe to retry.', ui.ButtonSet.OK);
+    return;
+  }
+
+  if (corrections.length > 0) {
+    var reviewSheet = getOrCreateGuideReviewSheet_(ss);
+    var rowsByNumber = {};
+    rows.forEach(function (r) { rowsByNumber[r.row] = r; });
+
+    corrections.forEach(function (c) {
+      var source = rowsByNumber[c.row];
+      var reviewText = source ? String(source.review).slice(0, 200) : '';
+      reviewSheet.appendRow([
+        false, sheetName, c.row, c.currentGuide, c.suggestedGuide, reviewText, c.reason,
+      ]);
+    });
+  }
+
+  setLastProcessedRow_(sheetName, lastRow);
+  ui.alert(
+    'Resolve Complete',
+    'Checked ' + rows.length + ' row(s) on "' + sheetName + '". ' +
+      corrections.length + ' suggestion(s) added to "Guide Review".',
+    ui.ButtonSet.OK
+  );
+}
