@@ -136,7 +136,7 @@ function buildGuideMatchingRulesText_() {
 
 function buildGuideMatchingPrompt_(rows) {
   var dataLines = rows.map(function (r) {
-    return 'Row ' + r.row + ' | Current Guide: ' + r.guide + ' | Review: ' + r.review;
+    return 'Row ' + r.row + ' | Current Guide: ' + r.guide + ' | City: ' + r.city + ' | Review: ' + r.review;
   });
   return buildGuideMatchingRulesText_() + '\n\nData to Process:\n\n' + dataLines.join('\n');
 }
@@ -320,8 +320,10 @@ function callGeminiForCorrections_(promptText) {
 
 function test_geminiCorrectionCall() {
   var rows = [
-    { row: 2, guide: 'Lorena Arias', review: 'A special thanks to our guide Peter, who was fantastic.' },
-    { row: 3, guide: 'Diana Bolić', review: 'Diana was amazing, learned so much about Zagreb!' },
+    { row: 2, guide: 'Lorena Arias', city: 'du', review: 'A special thanks to our guide Peter, who was fantastic.' },
+    { row: 3, guide: 'Diana Bolić', city: 'zg', review: 'Diana was amazing, learned so much about Zagreb!' },
+    { row: 4, guide: 'N/A', city: 'zg', review: 'Katarina was absolutely wonderful and made our Zagreb walking tour so much fun, highly recommend her!' },
+    { row: 5, guide: 'Andrija Grubić', city: 'zd', review: 'Our guide today was actually an external, subcontracted guide filling in — not one of your regular team members — but still did a great job.' },
   ];
   var prompt = buildGuideMatchingPrompt_(rows);
   var corrections = callGeminiForCorrections_(prompt);
@@ -331,6 +333,18 @@ function test_geminiCorrectionCall() {
   if (!row2) throw new Error('Expected a correction for row 2 (Peter = Pero Kusalo), got none');
   if (row2.suggestedGuide !== 'Pero Kusalo') {
     throw new Error('Expected row 2 suggestedGuide "Pero Kusalo", got "' + row2.suggestedGuide + '"');
+  }
+
+  var row4 = corrections.filter(function (c) { return c.row === 4; })[0];
+  if (!row4) throw new Error('Expected a correction for row 4 (N/A filled from review text), got none');
+  if (row4.suggestedGuide !== 'Katarina Novoselac') {
+    throw new Error('Expected row 4 suggestedGuide "Katarina Novoselac", got "' + row4.suggestedGuide + '"');
+  }
+
+  var row5 = corrections.filter(function (c) { return c.row === 5; })[0];
+  if (!row5) throw new Error('Expected a correction for row 5 (external guide -> vanjski), got none');
+  if (row5.suggestedGuide !== 'vanjski') {
+    throw new Error('Expected row 5 suggestedGuide "vanjski", got "' + row5.suggestedGuide + '"');
   }
 
   var row3 = corrections.filter(function (c) { return c.row === 3; })[0];
@@ -382,9 +396,10 @@ function getRowsToCheck_(ui) {
   for (var i = 0; i < values.length; i++) {
     var actualRow = startRow + i;
     var guide = values[i][2] || '';   // column C
+    var city = values[i][5] || '';    // column F
     var review = values[i][8] || '';  // column I
     if (!review) continue; // nothing to match a name against
-    rows.push({ row: actualRow, guide: guide, review: review, fullRow: values[i] });
+    rows.push({ row: actualRow, guide: guide, city: city, review: review, fullRow: values[i] });
   }
 
   return { ss: ss, sheetName: sheetName, lastRow: lastRow, rows: rows };
