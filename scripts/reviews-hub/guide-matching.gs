@@ -64,11 +64,13 @@ var GUIDE_MATCHING_RULES =
   'Catherine = Katarina, Zara = Sara, Nikoletta = Nikolina), or partial names.\n\n' +
   'Compare: Compare the name found in the Review against the name in the Guide column.\n\n' +
   'Keep Existing (Default): If the review does NOT mention a name, or if the name mentioned ' +
-  'matches the Guide column (even with slight misspellings), do NOT propose a change.\n\n' +
+  'matches the Guide column (even with slight misspellings), do NOT change anything — do not ' +
+  'propose a correction for this row.\n\n' +
   'Update if Contradictory: If the review explicitly names a guide that is clearly different ' +
-  'from the one in the Guide column, propose the correct one.\n\n' +
+  'from the one in the Guide column, you must propose the correct one.\n\n' +
   'Cross-Reference: When proposing a correction, you MUST pick the valid full name from the ' +
-  'Master Guide List below. Ensure the new guide matches the City code implied by context.\n\n' +
+  'Master Guide List below. Ensure the new guide matches the City code in the data (du = ' +
+  'Dubrovnik, zg = Zagreb, zd = Zadar, st = Split).\n\n' +
   'Master Guide List:\n\n' +
   'Zagreb (zg): Antonio Sičić, Darko Crnolatac, Diana Bolić, Dora Mlinarek Dominik, Doris ' +
   'Cvetko Pavišić, Ena Matacun, Iva Pavlović, Ivana Čakarić, Josipa Šiklić, Katarina ' +
