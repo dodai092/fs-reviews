@@ -6,6 +6,7 @@ function onOpen() {
   ui.createMenu("Review Tools")
     .addItem("Find Duplicates in Active Sheet", "findDuplicatesInActiveSheet")
     .addItem("Resolve Guide Names via AI", "resolveGuideNamesViaAI")
+    .addItem("Apply Approved Corrections", "applyApprovedCorrections")
     .addToUi();
 }
 

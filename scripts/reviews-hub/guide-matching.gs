@@ -237,3 +237,48 @@ function resolveGuideNamesViaAI() {
     ui.ButtonSet.OK
   );
 }
+
+function applyApprovedCorrections() {
+  var ui = SpreadsheetApp.getUi();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var reviewSheet = ss.getSheetByName('Guide Review');
+  if (!reviewSheet) {
+    ui.alert('Nothing To Apply', 'No "Guide Review" tab exists yet — run "Resolve Guide Names via AI" first.', ui.ButtonSet.OK);
+    return;
+  }
+
+  var lastRow = reviewSheet.getLastRow();
+  if (lastRow < 2) {
+    ui.alert('Nothing To Apply', 'The "Guide Review" tab has no pending suggestions.', ui.ButtonSet.OK);
+    return;
+  }
+
+  var data = reviewSheet.getRange(2, 1, lastRow - 1, GUIDE_REVIEW_HEADERS.length).getValues();
+  var applied = 0;
+  var rowsToDelete = []; // staging-sheet row numbers, collected top-to-bottom
+
+  for (var i = 0; i < data.length; i++) {
+    var approve = data[i][0];
+    if (!approve) continue;
+
+    var sourceSheetName = data[i][1];
+    var sourceRow = data[i][2];
+    var suggestedGuide = data[i][4];
+    var sourceSheet = ss.getSheetByName(sourceSheetName);
+    if (!sourceSheet) {
+      logGuideMatchingError_(ss, 'applyApprovedCorrections: source sheet "' + sourceSheetName + '" not found for staged row ' + (i + 2));
+      continue;
+    }
+
+    sourceSheet.getRange(sourceRow, 3).setValue(suggestedGuide); // column C = Guide
+    applied++;
+    rowsToDelete.push(i + 2); // +2: 1-indexed, plus the header row
+  }
+
+  // Delete bottom-to-top so earlier indices in rowsToDelete stay valid as rows shift up.
+  for (var d = rowsToDelete.length - 1; d >= 0; d--) {
+    reviewSheet.deleteRow(rowsToDelete[d]);
+  }
+
+  ui.alert('Apply Complete', applied + ' correction(s) written back to the Review HUB.', ui.ButtonSet.OK);
+}
