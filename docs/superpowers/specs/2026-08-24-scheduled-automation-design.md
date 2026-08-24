@@ -33,28 +33,50 @@ just a static username/password. Google Maps and TripAdvisor require no login.
 
 A new standalone Node script, `automation/run.js`, lives alongside the extension. It does
 **not** replace the extension — the extension keeps working unchanged for manual/ad-hoc use.
+
+**How injection is triggered — see [[0001-automation-drives-service-worker-not-popup]] for the
+full reasoning.** In short: automation loads the real unpacked extension into the
+Playwright-launched browser (`--load-extension`) rather than raw-injecting scraping scripts into
+a bare page or simulating a popup click, because `getyourguide.js`/`viator.js` depend on
+`chrome.runtime.sendMessage` reaching the real `background.js`, and because `popup.js`'s
+tab-detection depends on a live user gesture that automation can't reproduce. Automation instead
+gets a handle on the extension's own background service worker via Playwright's
+`context.serviceWorkers()` and calls `chrome.scripting.executeScript` directly from inside it —
+the same two calls `popup.js`/`background.js` already make.
+
+This requires one change to the extension itself: `manifest.json`'s `host_permissions` must be
+expanded to cover all 7 platform domains (`airbnb.com`, `airbnb.co.uk`, `freetour.com`,
+`getyourguide.com`, `google.com/maps`, `maps.google.*`, `guruwalk.com`, `viator.com`,
+`tripadvisor.com`), not just the 4 currently listed. Today, `chrome.scripting.executeScript`
+works on the other domains only via `activeTab`'s temporary per-click grant — which a
+programmatically triggered call does not receive. This affects **all 7 platforms**, not just the
+5 login-required ones — Google Maps and TripAdvisor need the same fix. This is the only change
+to any extension file; `popup.js` and all `scripts/*.js` files are otherwise untouched and the
+popup UI keeps working exactly as today for manual/ad-hoc use.
+
 `automation/run.js`:
 
-1. Launches Chromium via Playwright's `launchPersistentContext(userDataDir, { headless: true })`,
-   pointing `userDataDir` at the "Free Spirit" profile's actual folder on disk (found via
+1. Launches Chromium via Playwright's `launchPersistentContext(userDataDir, { headless: true,
+   args: ['--disable-extensions-except=<ext path>', '--load-extension=<ext path>'] })`, pointing
+   `userDataDir` at the "Free Spirit" profile's actual folder on disk (found via
    `chrome://version` while that profile is open — exact path confirmed during the smoke test,
-   not assumed in this spec).
+   not assumed in this spec). Note: loading an extension has traditionally required a headed
+   browser; whether Playwright's headless Chromium supports `--load-extension` is unverified and
+   must be confirmed by the smoke test — if not, the browser runs headed instead (still fully
+   unattended, just with a visible window during scheduled runs).
 2. For each of the 7 platforms in sequence: opens a page, navigates to that platform's reviews
-   URL, waits for load/settle (reusing the same settle logic as `waitForDOMSettle` conceptually,
-   via Playwright's own waiting), then injects `scripts/common.js` and `scripts/<platform>.js`
-   via `page.addScriptTag({ path })` — the exact same files the extension loads, unmodified.
-3. Before injection, sets `window.__targetMonth` / `__targetYear` / `__targetWeekStart` /
-   `__targetWeekEnd` via `page.evaluate()`, mirroring what `popup.js` does — targeting the
-   previous Mon–Sun week by default.
-4. For GetYourGuide and Viator, which apply the week filter via a server-side URL redirect (see
-   `CLAUDE.md`'s week filter notes), the script does a second navigate + inject pass if the URL
-   changed after the first load, matching the "click twice" behavior described there.
-5. Collects each platform's `{ success, count }` result, or a `needsReauth` / `error` state (see
+   URL, waits for load/settle, then gets the extension's background service worker via
+   `context.serviceWorkers()` and calls `chrome.scripting.executeScript` from inside it to set
+   `window.__targetMonth` / `__targetYear` / `__targetWeekStart` / `__targetWeekEnd` on the page,
+   then inject `scripts/common.js` and `scripts/<platform>.js` — mirroring the exact sequence
+   `popup.js`'s `injectScript` performs, targeting the previous Mon–Sun week by default.
+3. For GetYourGuide and Viator, the redirect-continuation is handled automatically by
+   `background.js`'s existing `chrome.tabs.onUpdated` listener — no special handling is needed in
+   `automation/run.js` itself; it just waits for the platform's final `{ success, count }` result
+   after the redirect settles.
+4. Collects each platform's `{ success, count }` result, or a `needsReauth` / `error` state (see
    below).
-6. Closes the context, then sends one summary email via the Gmail API.
-
-No changes are made to `common.js` or any `scripts/*.js` platform file as part of this work —
-automation reuses them exactly as they exist for manual use.
+5. Closes the context, then sends one summary email via the Gmail API.
 
 ---
 
@@ -120,6 +142,10 @@ since this runs on a laptop, not an always-on server.
   architecturally in this design.
 - **Exact userDataDir path** is not yet known — must be read from `chrome://version` in that
   profile during implementation, not assumed.
+- **Headless extension loading (unverified):** whether `--load-extension` works with Playwright's
+  headless Chromium is not yet confirmed — see Architecture and Rollout plan. If not, the run
+  goes headed instead; this doesn't block the design, just changes whether a window is visible
+  during scheduled runs.
 - **Gmail sending mechanism** — whether the summary email is sent via direct Gmail API call from
   `automation/run.js`, or via a separate small helper — is an implementation detail to settle
   during planning, not a design decision that affects the architecture above.
@@ -128,17 +154,21 @@ since this runs on a laptop, not an always-on server.
 
 ## Rollout plan
 
-1. **Smoke test first.** A throwaway script that only launches Playwright against the real
-   "Free Spirit" profile folder and confirms (a) it opens at all, and (b) the profile's existing
-   cookies are intact (e.g. by checking a logged-in platform loads without a login wall). If
-   enterprise policy blocks this, stop and reconsider the approach before building anything
-   further.
-2. Build the injection loop for the 2 no-login platforms (Google Maps, TripAdvisor) first —
-   validates the navigate + addScriptTag approach independent of the auth question.
-3. Add the 5 login-required platforms one at a time, verifying real session reuse and building
+1. **Smoke test first.** A throwaway script that launches Playwright against the real "Free
+   Spirit" profile folder with `--load-extension` pointed at this repo, and confirms (a) the
+   browser opens at all — headless or headed, (b) the profile's existing cookies are intact
+   (e.g. a logged-in platform loads without a login wall), and (c) a service-worker handle can be
+   obtained and used to call `chrome.scripting.executeScript` successfully against a tab. If
+   enterprise policy blocks any of this, stop and reconsider the approach before building
+   anything further.
+2. Add `host_permissions` for all 7 platform domains to `manifest.json`.
+3. Build the injection loop for the 2 no-login platforms (Google Maps, TripAdvisor) first —
+   validates the service-worker-driven `chrome.scripting.executeScript` approach independent of
+   the auth question.
+4. Add the 5 login-required platforms one at a time, verifying real session reuse and building
    login-wall detection per platform.
-4. Add email reporting (success/needsReauth/error summary) and the local log file.
-5. Wire up the `launchd` LaunchAgent. Trigger one run manually first, then let it fire on
+5. Add email reporting (success/needsReauth/error summary) and the local log file.
+6. Wire up the `launchd` LaunchAgent. Trigger one run manually first, then let it fire on
    schedule and watch the first couple of real weekly runs before considering this done.
 
 ---
