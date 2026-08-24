@@ -13,31 +13,6 @@ function setLastProcessedRow_(sheetName, rowNumber) {
   props.setProperty('lastProcessedRow_' + sheetName, String(rowNumber));
 }
 
-/**
- * Menu-bound. Clears the stored cursor for the active sheet so the next "Resolve Guide Names
- * via AI" run re-checks every row from the top, instead of only newly appended rows.
- */
-function resetCursorForActiveSheet() {
-  var ui = SpreadsheetApp.getUi();
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var sheetName = sheet.getName();
-
-  if (sheetName === 'Error Log' || sheetName === 'Guide Review') {
-    ui.alert('Invalid Sheet', 'Switch to a month tab (e.g. "8") before running this.', ui.ButtonSet.OK);
-    return;
-  }
-
-  var response = ui.alert(
-    'Reset Cursor?',
-    'This makes "Resolve Guide Names via AI" re-check every row on "' + sheetName +
-      '" from the top next time it runs, instead of only new rows. Continue?',
-    ui.ButtonSet.YES_NO
-  );
-  if (response !== ui.Button.YES) return;
-
-  PropertiesService.getScriptProperties().deleteProperty('lastProcessedRow_' + sheetName);
-  ui.alert('Cursor Reset', 'Cursor cleared for "' + sheetName + '".', ui.ButtonSet.OK);
-}
 
 function test_cursorRoundTrip() {
   setLastProcessedRow_('__test__', 42);
@@ -128,6 +103,58 @@ function buildGuideMatchingPrompt_(rows) {
     return 'Row ' + r.row + ' | Current Guide: ' + r.guide + ' | Review: ' + r.review;
   });
   return GUIDE_MATCHING_RULES + '\n\nData to Process:\n\n' + dataLines.join('\n');
+}
+
+/**
+ * Menu-bound. Manual fallback for when the Gemini API flow is unavailable. Opens a dialog with
+ * a button that copies the prompt to the clipboard and opens a new Gemini chat tab — the user
+ * pastes the prompt in, then pastes their sheet rows after "Data to Process:". Reads
+ * GUIDE_MATCHING_RULES directly (the same constant the live API call uses) so this can never
+ * drift out of sync with what the automated flow actually sends Gemini.
+ */
+function openGeminiFallbackPrompt() {
+  var promptText = GUIDE_MATCHING_RULES + '\n\nData to Process:\n\n';
+  var escaped = promptText
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  var html = HtmlService.createHtmlOutput(
+    '<div style="font-family: Arial, sans-serif; padding: 4px;">' +
+    '<p style="margin-top:0;">Click the button to copy the prompt and open Gemini in a new tab. ' +
+    'Paste the prompt in, then paste your sheet rows right after &quot;Data to Process:&quot;.</p>' +
+    '<button id="copyBtn" style="padding:8px 16px; font-size:14px; cursor:pointer;">Copy Prompt &amp; Open Gemini</button>' +
+    '<p id="status" style="color:#188038; font-size:12px; min-height:16px;"></p>' +
+    '<p style="font-size:12px; color:#5f6368;">If the automatic copy does not work, the text below is pre-selected — press Ctrl/Cmd+C to copy it manually.</p>' +
+    '<textarea id="promptBox" readonly style="width:100%; height:220px; font-family:monospace; font-size:11px;">' + escaped + '</textarea>' +
+    '<script>' +
+    'var promptText = document.getElementById("promptBox").value;' +
+    'document.getElementById("copyBtn").addEventListener("click", function() {' +
+    '  var status = document.getElementById("status");' +
+    '  window.open("https://gemini.google.com/app", "_blank");' + // opened synchronously in the click handler so popup blockers allow it regardless of the clipboard promise below
+    '  function fallbackCopy() {' +
+    '    var box = document.getElementById("promptBox");' +
+    '    box.select();' +
+    '    var ok = false;' +
+    '    try { ok = document.execCommand("copy"); } catch (e) {}' +
+    '    status.textContent = ok' +
+    '      ? "Copied! Paste it into the new Gemini tab."' +
+    '      : "Could not auto-copy \\u2014 text is selected below, press Ctrl/Cmd+C, then paste it into the new Gemini tab.";' +
+    '  }' +
+    '  if (navigator.clipboard && navigator.clipboard.writeText) {' +
+    '    navigator.clipboard.writeText(promptText).then(function() {' +
+    '      status.textContent = "Copied! Paste it into the new Gemini tab.";' +
+    '    }).catch(fallbackCopy);' +
+    '  } else {' +
+    '    fallbackCopy();' +
+    '  }' +
+    '});' +
+    '</script>' +
+    '</div>'
+  ).setWidth(480).setHeight(420);
+
+  SpreadsheetApp.getUi().showModalDialog(html, 'Fallback Prompt (Gemini)');
 }
 
 // gemini-2.0-flash is shut down. gemini-2.5-flash 404s on newly-created projects ("no longer
@@ -232,8 +259,17 @@ function resolveGuideNamesViaAI() {
   var lastRow = sheet.getLastRow();
   var startRow = getLastProcessedRow_(sheetName) + 1;
   if (startRow > lastRow) {
-    ui.alert('Nothing New', 'No new rows since the last run on "' + sheetName + '".', ui.ButtonSet.OK);
-    return;
+    if (lastRow < 2) {
+      ui.alert('Nothing To Check', 'Sheet "' + sheetName + '" has no data rows.', ui.ButtonSet.OK);
+      return;
+    }
+    var response = ui.alert(
+      'Already Checked',
+      'This sheet has already been fully checked. Re-check all rows from the top?',
+      ui.ButtonSet.YES_NO
+    );
+    if (response !== ui.Button.YES) return;
+    startRow = 2; // re-check every data row, not just rows past the old cursor
   }
 
   var numRows = lastRow - startRow + 1;
