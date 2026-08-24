@@ -1,0 +1,4 @@
+automation/node_modules/
+automation/logs/
+automation/platforms.json
+automation/secrets.json
