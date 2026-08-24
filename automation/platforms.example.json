@@ -1,0 +1,65 @@
+[
+  {
+    "id": "airbnb",
+    "script": "airbnb.js",
+    "url": "https://www.airbnb.com/REPLACE_WITH_REAL_REVIEWS_URL",
+    "needsLogin": true,
+    "weekSupported": false,
+    "authWallSelectors": ["input[type=password]", "input[name=email]"],
+    "authWallUrlContains": ["/login"]
+  },
+  {
+    "id": "freetour",
+    "script": "freetour.js",
+    "url": "https://www.freetour.com/REPLACE_WITH_REAL_REVIEWS_URL",
+    "needsLogin": true,
+    "weekSupported": true,
+    "authWallSelectors": ["input[type=password]"],
+    "authWallUrlContains": ["/login", "/signin"]
+  },
+  {
+    "id": "getyourguide",
+    "script": "getyourguide.js",
+    "url": "https://supplier.getyourguide.com/REPLACE_WITH_REAL_REVIEWS_URL",
+    "needsLogin": true,
+    "weekSupported": true,
+    "authWallSelectors": ["input[type=password]"],
+    "authWallUrlContains": ["/login", "/auth"]
+  },
+  {
+    "id": "google",
+    "script": "google.js",
+    "url": "https://www.google.com/maps/REPLACE_WITH_REAL_REVIEWS_URL",
+    "needsLogin": false,
+    "weekSupported": true,
+    "authWallSelectors": [],
+    "authWallUrlContains": []
+  },
+  {
+    "id": "guruwalk",
+    "script": "guruwalk.js",
+    "url": "https://guruwalk.com/REPLACE_WITH_REAL_REVIEWS_URL",
+    "needsLogin": true,
+    "weekSupported": true,
+    "authWallSelectors": ["input[type=password]"],
+    "authWallUrlContains": ["/login", "/signin"]
+  },
+  {
+    "id": "viator",
+    "script": "viator.js",
+    "url": "https://supplier.viator.com/REPLACE_WITH_REAL_REVIEWS_URL",
+    "needsLogin": true,
+    "weekSupported": true,
+    "authWallSelectors": ["input[type=password]"],
+    "authWallUrlContains": ["/login", "/auth"]
+  },
+  {
+    "id": "tripadvisor",
+    "script": "tripadvisor.js",
+    "url": "https://www.tripadvisor.com/REPLACE_WITH_REAL_REVIEWS_URL",
+    "needsLogin": false,
+    "weekSupported": false,
+    "authWallSelectors": [],
+    "authWallUrlContains": []
+  }
+]
