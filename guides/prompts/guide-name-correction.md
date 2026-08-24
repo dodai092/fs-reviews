@@ -1,17 +1,21 @@
 # Guide Name Correction Prompt
 
-> **Note:** This manual claude.ai prompt is now a fallback. The normal path is the Apps Script
-> flow — Review Tools → Resolve Guide Names via AI (`scripts/reviews-hub/guide-matching.gs`) —
-> which runs the same rules against the Review HUB directly, no manual claude.ai round trip
-> required. Use this prompt only if that flow is unavailable.
+> **Note:** This manual chat prompt is a fallback. The normal path is Review Tools → **Open
+> Gemini** in the live Apps Script project (`scripts/reviews-hub/guide-matching.gs`,
+> `GUIDE_MATCHING_RULES_MANUAL`) — it copies this exact prompt with your sheet's actual rows
+> already appended, and opens a new Gemini chat tab, in one click. Use this document only if
+> that menu item is unavailable (e.g. no Apps Script editor access at all). Note this is a
+> different prompt from the one behind Review Tools → **Guide Names From Text**, which uses a
+> JSON output contract instead of a table — the two are deliberately different, not out of sync:
+> a human reading a chat response wants a table, the automated flow needs machine-parseable JSON.
 
-**Purpose:** Cross-checks the `Guide` column in a batch of scraped reviews against the actual review text, and fixes it when the reviewer names a different guide than the one currently recorded (including filling in `N/A` rows where the text names someone).
+**Purpose:** Cross-checks the `Guide` column in a batch of scraped reviews against the actual review text, and fixes it when the reviewer names a different guide than the one currently recorded.
 
 **Used for:** the `Review HUB` sheet, across all platforms. Run alongside review extraction — currently weekly during high season, less often off-season.
 
-**Source:** `00. Review HUB.xlsx` → `Help` sheet → cell `J2`. This is the current, in-use version. Two earlier drafts (`G2` "Names from Schedule" and `H2` "Names from Schedule and Review Text") exist in the same sheet but are superseded — they matched primarily against the weekly schedule; this version trusts the review text first and treats the schedule as unnecessary, which is simpler to run since it doesn't require a freshly reformatted schedule as an input.
+**Source:** `00. Review HUB.xlsx` → `Help` sheet → cell `J2` historically; the live text now lives in `GUIDE_MATCHING_RULES_MANUAL` in `scripts/reviews-hub/guide-matching.gs` — treat that constant as canonical and keep this file in sync with it. Two earlier drafts (`G2` "Names from Schedule" and `H2` "Names from Schedule and Review Text") exist in the same `Help` sheet but are a different, broader feature — they cross-reference the weekly guide schedule to fill in blank (`N/A`) guides, which this prompt does not attempt.
 
-**How to use:** paste this prompt into a claude.ai (or similar) chat, then paste the batch of review rows to check after "Data to Process:". The response is a JSON array of proposed changes (only for rows that actually need a correction) — apply them by hand to the named row numbers in the Review HUB sheet's Guide column.
+**How to use:** paste this prompt into a claude.ai (or similar) chat, then paste the full rows to check (all original sheet columns, tab-separated) after "Data to Process:". The response is a corrected table with a "Correction Note" column appended — drop that column, then paste the remaining columns back over the original row range in the Review HUB sheet.
 
 ---
 
@@ -28,11 +32,13 @@ Analyze the Review: Read the Review text carefully to see if a specific tour gui
 
 Compare: Compare the name found in the Review against the name in the Guide column.
 
-Keep Existing (Default): If the review does NOT mention a name, or if the name mentioned matches the Guide column (even with slight misspellings), do NOT change anything — do not propose a correction for this row.
+Keep Existing (Default): If the review does NOT mention a name, or if the name mentioned matches the Guide column (even with slight misspellings), do NOT change anything. Output the existing Guide name.
 
-Update if Contradictory: If the review explicitly names a guide that is clearly different from the one in the Guide column, you must propose the correct one.
+Update if Contradictory: If the review explicitly names a guide that is clearly different from the one in the Guide column, you must update the Guide name to the correct one.
 
-Cross-Reference: When proposing a correction, you MUST pick the valid full name from the Master Guide List below. Ensure the new guide matches the City code in the data (du = Dubrovnik, zg = Zagreb, zd = Zadar, st = Split).
+Cross-Reference: When correcting a name, you MUST pick the valid full name from the provided "Master Guide List" below. Ensure the new guide matches the City code in the data (du = Dubrovnik, zg = Zagreb, zd = Zadar, st = Split).
+
+Output Format: Provide a final, corrected table. Add a brief column at the end called "Correction Note" detailing what you changed and why (e.g., "Changed from Lorena Arias to Marin Kalauz based on review").
 
 Master Guide List:
 
@@ -44,11 +50,9 @@ Split (st): Bruno Beara, Ivana Čagalj, Boris Čerina, Lorena Ćelić, Marina Kr
 
 Dubrovnik (du): Lorena Arias, Marin Kalauz, Pero Kusalo, Ivo Miličić, Maja Musulin, Andrea Rendulić, Nikolina Vidojević, Sara Žanetić, Romana Tomičić
 
-Output Format: Respond with ONLY a JSON array, no markdown fences, no commentary. Include an entry ONLY for rows where you are proposing a change — omit rows where the existing Guide value should be kept as-is. Each entry: {"row": <the Row number from the input>, "currentGuide": <string>, "suggestedGuide": <string, must be a full name from the Master Guide List>, "reason": <short string explaining what in the review text justified the change>}. If no rows need a change, respond with an empty JSON array: []
-
 Data to Process:
 ```
 
 ## Maintenance
 
-The Master Guide List embedded in this prompt must match `Help!A:B` in `00. Review HUB.xlsx` and the `GUIDES` registry in `scripts/common.js`. Update all three together when the roster changes.
+The Master Guide List embedded in this prompt must match `Help!A:B` in `00. Review HUB.xlsx`, the `GUIDES` registry in `scripts/common.js`, and `GUIDE_MATCHING_RULES` (the JSON-contract sibling of this prompt) in `scripts/reviews-hub/guide-matching.gs`. Update all four together when the roster changes.

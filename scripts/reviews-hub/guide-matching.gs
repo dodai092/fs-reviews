@@ -105,12 +105,59 @@ function buildGuideMatchingPrompt_(rows) {
   return GUIDE_MATCHING_RULES + '\n\nData to Process:\n\n' + dataLines.join('\n');
 }
 
+// Manual-chat variant of the prompt — a genuinely different output contract from
+// GUIDE_MATCHING_RULES above, not a copy that drifted. A human reading a Gemini chat response
+// wants a corrected table with a "Correction Note" column they can read and paste straight back
+// over the original range; the automated flow needs machine-parseable JSON instead. Kept as a
+// separate constant deliberately, matching guides/prompts/guide-name-correction.md.
+var GUIDE_MATCHING_RULES_MANUAL =
+  'Role & Task:\n\n' +
+  'You are an expert data auditor. Your task is to review a dataset of tour bookings and ' +
+  'correct the Guide column based on the text in the Review column.\n\n' +
+  'Rules:\n\n' +
+  'Analyze the Review: Read the Review text carefully to see if a specific tour guide\'s name ' +
+  'is mentioned. Account for typos, phonetic spellings, translated names (e.g., Peter = Pero, ' +
+  'Catherine = Katarina, Zara = Sara, Nikoletta = Nikolina), or partial names.\n\n' +
+  'Compare: Compare the name found in the Review against the name in the Guide column.\n\n' +
+  'Keep Existing (Default): If the review does NOT mention a name, or if the name mentioned ' +
+  'matches the Guide column (even with slight misspellings), do NOT change anything. Output ' +
+  'the existing Guide name.\n\n' +
+  'Update if Contradictory: If the review explicitly names a guide that is clearly different ' +
+  'from the one in the Guide column, you must update the Guide name to the correct one.\n\n' +
+  'Cross-Reference: When correcting a name, you MUST pick the valid full name from the ' +
+  'provided "Master Guide List" below. Ensure the new guide matches the City code in the data ' +
+  '(du = Dubrovnik, zg = Zagreb, zd = Zadar, st = Split).\n\n' +
+  'Output Format: Provide a final, corrected table. Add a brief column at the end called ' +
+  '"Correction Note" detailing what you changed and why (e.g., "Changed from Lorena Arias to ' +
+  'Marin Kalauz based on review").\n\n' +
+  'Master Guide List:\n\n' +
+  'Zagreb (zg): Antonio Sičić, Darko Crnolatac, Diana Bolić, Dora Mlinarek Dominik, Doris ' +
+  'Cvetko Pavišić, Ena Matacun, Iva Pavlović, Ivana Čakarić, Josipa Šiklić, Katarina ' +
+  'Novoselac, Katija Crnčević, Kristina Božić, Luka Pelicarić, Nadir Ivanović, Nikolina ' +
+  'Folnović, Vid Dorić\n' +
+  'Zadar (zd): Andrija Grubić, Tonka Baričević, Matea Duka, Iva Zaplatić, Nikolina Kuzman\n' +
+  'Split (st): Bruno Beara, Ivana Čagalj, Boris Čerina, Lorena Ćelić, Marina Krolo, Petra ' +
+  'Lučev, Marija Močić\n' +
+  'Dubrovnik (du): Lorena Arias, Marin Kalauz, Pero Kusalo, Ivo Miličić, Maja Musulin, Andrea ' +
+  'Rendulić, Nikolina Vidojević, Sara Žanetić, Romana Tomičić';
+
+// Full original rows (all 9 sheet columns, tab-separated), not the reduced Row/Guide/Review
+// triplet buildGuideMatchingPrompt_ uses — the table this returns is meant to be pasted
+// straight back over the source range, so it needs the same shape as what was pasted in.
+function buildGuideMatchingPromptManual_(rows) {
+  var dataLines = rows.map(function (r) {
+    return r.fullRow.join('\t');
+  });
+  return GUIDE_MATCHING_RULES_MANUAL + '\n\nData to Process:\n\n' + dataLines.join('\n');
+}
+
 /**
  * Menu-bound. Manual fallback for when the Gemini API flow is unavailable. Pulls the exact same
  * rows resolveGuideNamesViaAI would send (new rows since the cursor on the active sheet, same
- * "already checked — re-check?" prompt if there is nothing new), builds the identical prompt via
- * buildGuideMatchingPrompt_, and opens a dialog with a button that copies the whole thing —
- * rules and data together — to the clipboard and opens a new Gemini chat tab in one click.
+ * "already checked — re-check?" prompt if there is nothing new), builds the manual-format prompt
+ * via buildGuideMatchingPromptManual_, and opens a dialog with a button that copies the whole
+ * thing — rules and data together — to the clipboard and opens a new Gemini chat tab in one
+ * click.
  *
  * Deliberately does NOT advance the cursor: unlike a successful automated run, there is no way
  * to know whether the user actually finished the manual check in Gemini (they might close the
@@ -129,7 +176,7 @@ function openGeminiFallbackPrompt() {
     return;
   }
 
-  var promptText = buildGuideMatchingPrompt_(context.rows);
+  var promptText = buildGuideMatchingPromptManual_(context.rows);
   var escaped = promptText
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -301,7 +348,7 @@ function getRowsToCheck_(ui) {
     var guide = values[i][2] || '';   // column C
     var review = values[i][8] || '';  // column I
     if (!review) continue; // nothing to match a name against
-    rows.push({ row: actualRow, guide: guide, review: review });
+    rows.push({ row: actualRow, guide: guide, review: review, fullRow: values[i] });
   }
 
   return { ss: ss, sheetName: sheetName, lastRow: lastRow, rows: rows };
