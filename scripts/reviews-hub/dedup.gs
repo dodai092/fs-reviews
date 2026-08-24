@@ -7,6 +7,7 @@ function onOpen() {
     .addItem("Find Duplicates in Active Sheet", "findDuplicatesInActiveSheet")
     .addItem("Resolve Guide Names via AI", "resolveGuideNamesViaAI")
     .addItem("Apply Approved Corrections", "applyApprovedCorrections")
+    .addItem("Reset Cursor for Active Sheet", "resetCursorForActiveSheet")
     .addToUi();
 }
 

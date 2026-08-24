@@ -13,6 +13,32 @@ function setLastProcessedRow_(sheetName, rowNumber) {
   props.setProperty('lastProcessedRow_' + sheetName, String(rowNumber));
 }
 
+/**
+ * Menu-bound. Clears the stored cursor for the active sheet so the next "Resolve Guide Names
+ * via AI" run re-checks every row from the top, instead of only newly appended rows.
+ */
+function resetCursorForActiveSheet() {
+  var ui = SpreadsheetApp.getUi();
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var sheetName = sheet.getName();
+
+  if (sheetName === 'Error Log' || sheetName === 'Guide Review') {
+    ui.alert('Invalid Sheet', 'Switch to a month tab (e.g. "8") before running this.', ui.ButtonSet.OK);
+    return;
+  }
+
+  var response = ui.alert(
+    'Reset Cursor?',
+    'This makes "Resolve Guide Names via AI" re-check every row on "' + sheetName +
+      '" from the top next time it runs, instead of only new rows. Continue?',
+    ui.ButtonSet.YES_NO
+  );
+  if (response !== ui.Button.YES) return;
+
+  PropertiesService.getScriptProperties().deleteProperty('lastProcessedRow_' + sheetName);
+  ui.alert('Cursor Reset', 'Cursor cleared for "' + sheetName + '".', ui.ButtonSet.OK);
+}
+
 function test_cursorRoundTrip() {
   setLastProcessedRow_('__test__', 42);
   var result = getLastProcessedRow_('__test__');
