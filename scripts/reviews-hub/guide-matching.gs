@@ -44,10 +44,16 @@ function getOrCreateGuideReviewSheet_(ss) {
 // Appends a suggestion row and gives it a live checkbox in column A — checkboxes are added
 // per-row on write, not pre-filled across the sheet (a pre-filled checkbox writes an actual
 // FALSE value into every cell, which made getLastRow() see 1000 rows of "data" and pushed every
-// appendRow() past row 1000 instead of right after the real rows).
-function appendGuideReviewRow_(sheet, rowValues) {
+// appendRow() past row 1000 instead of right after the real rows). When flagUnverified is true
+// (Suggested Guide didn't match a known roster name or "vanjski"), the row is highlighted so an
+// inattentive reviewer doesn't approve a possibly-hallucinated value by mistake.
+function appendGuideReviewRow_(sheet, rowValues, flagUnverified) {
   sheet.appendRow(rowValues);
-  sheet.getRange(sheet.getLastRow(), 1).insertCheckboxes();
+  var lastRow = sheet.getLastRow();
+  sheet.getRange(lastRow, 1).insertCheckboxes();
+  if (flagUnverified) {
+    sheet.getRange(lastRow, 1, 1, rowValues.length).setBackground('#fff3cd');
+  }
 }
 
 function test_guideReviewSheetSetup() {
@@ -98,6 +104,23 @@ function buildMasterGuideListText_() {
     var names = (byCity[code] || []).slice().sort();
     return CITY_DISPLAY_NAMES_[code] + ' (' + code + '): ' + names.join(', ');
   }).join('\n');
+}
+
+// Set of every guide name in Help!A, for checking a Gemini-proposed suggestedGuide is real
+// before it lands in the staging tab. Returns an empty object (nothing validates as known) if
+// the Help sheet is missing — resolveGuideNamesViaAI would already have thrown earlier in the
+// same run building the prompt, so this only matters for a caller that skips straight here.
+function getValidGuideNamesSet_() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Help');
+  if (!sheet) return {};
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return {};
+  var names = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  var set = {};
+  names.forEach(function (row) {
+    if (row[0]) set[row[0]] = true;
+  });
+  return set;
 }
 
 function buildGuideMatchingRulesText_() {
@@ -432,6 +455,7 @@ function resolveGuideNamesViaAI() {
     var reviewSheet = getOrCreateGuideReviewSheet_(ss);
     var rowsByNumber = {};
     rows.forEach(function (r) { rowsByNumber[r.row] = r; });
+    var validNames = getValidGuideNamesSet_();
 
     corrections.forEach(function (c) {
       var source = rowsByNumber[c.row];
@@ -440,9 +464,11 @@ function resolveGuideNamesViaAI() {
         return;
       }
       var reviewText = String(source.review).slice(0, 200);
+      var isKnownName = c.suggestedGuide === 'vanjski' || validNames[c.suggestedGuide];
+      var reason = isKnownName ? c.reason : '[NOT ON MASTER LIST] ' + c.reason;
       appendGuideReviewRow_(reviewSheet, [
-        false, sheetName, c.row, c.currentGuide, c.suggestedGuide, reviewText, c.reason,
-      ]);
+        false, sheetName, c.row, c.currentGuide, c.suggestedGuide, reviewText, reason,
+      ], !isKnownName);
       stagedCount++;
     });
   }
