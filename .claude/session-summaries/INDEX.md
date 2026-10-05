@@ -1,0 +1,11 @@
+# Session summaries
+- 2026-08-24 12:35 — [Fixed Guruwalk review scraper: new markup, pagination, guide-name fallback](2026-08-24-123510-a1b2c3d4.md)
+- 2026-08-24 15:17 — [Built unattended weekly automation (Playwright + extension service worker); merged to main; blocked on real Gmail App Password + VS Code Full Disk Access restart](2026-08-24-151712-b6d9e40a.md)
+- 2026-08-24 17:48 — [Reverted the scheduled automation entirely (OTP/bot-detection blockers); kept 2 manual-workflow bug fixes; planned an Apps Script + Gemini API replacement for the manual guide-name-correction workflow](2026-08-24-174845-c281eb8c.md)
+- 2026-08-25 00:50 — [Built and shipped the Apps Script + Gemini guide-matching flow (5-task SDD plan, merged to main), then live-debugged and extended it: model fallback, checkbox bug, Open Gemini one-click fallback, N/A-fill, vanjski support, dynamic Master Guide List, roster-validation guard, docx sync](2026-08-25-005000-9f3a1c2e.md)
+- 2026-08-26 17:01 — [Added guide Emma Martinović across reviews-extract's roster files/docs](2026-08-26-170101-a3f7c9e2.md)
+- 2026-08-31 12:22 — [Viator scraper shipped empty rows: fixed stale CSS-module selectors in viator.js](2026-08-31-122236-af8c.md)
+- 2026-09-21 16:25 — [Fixed Guruwalk scraper for redesigned cards and pagination, updated case studies](2026-09-21-162523-ae3d.md)
+- 2026-09-28 13:10 — [Guruwalk cards and pager fixed, Viator page-turn check reworked](2026-09-28-131045-84a8.md)
+- 2026-09-30 12:00 — [Popup and icon redesign to match Bookings](2026-09-30-120018-009f.md)
+- 2026-10-05 22:17 — [Viator scraper: date guard and 15-page cap after runaway pagination](2026-10-05-221732-9121.md)
